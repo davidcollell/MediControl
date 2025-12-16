@@ -1,0 +1,28 @@
+{
+  "name": "MediControl IA",
+  "short_name": "MediControl",
+  "description": "Gestiona la teva medicació i consulta dubtes amb l'assistent IA.",
+  "categories": ["medical", "health", "productivity"],
+  "lang": "ca",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNTMuOSAxNTguMWMtMzEuMi0zMS4yLTgxLjktMzEuMi0xMTMuMSAwTDE1OC4xIDI0MC44Yy0zMS4yIDMxLjItMzEuMiA4MS45IDAgMTEzLjFzODEuOSAzMS4yIDExMy4xIDBsODIuNy04Mi43YzMxLjItMzEuMiAzMS4yLTgxLjkgMC0xMTMuMXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjMyIDI4MGw0OC00OCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNDIwIDgwbDEyIDMyIDMyIDEyLTMyIDEyLTEyIDMyLTEyLTMyLTMyLTEyIDMyLTEyeiIgZmlsbD0iI2ZkZTA0NyIvPjwvc3ZnPg==",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNTMuOSAxNTguMWMtMzEuMi0zMS4yLTgxLjktMzEuMi0xMTMuMSAwTDE1OC4xIDI0MC44Yy0zMS4yIDMxLjItMzEuMiA4MS45IDAgMTEzLjFzODEuOSAzMS4yIDExMy4xIDBsODIuNy04Mi43YzMxLjItMzEuMiAzMS4yLTgxLjkgMC0xMTMuMXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjMyIDI4MGw0OC00OCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNDIwIDgwbDEyIDMyIDMyIDEyLTMyIDEyLTEyIDMyLTEyLTMyLTMyLTEyIDMyLTEyeiIgZmlsbD0iI2ZkZTA0NyIvPjwvc3ZnPg==",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
