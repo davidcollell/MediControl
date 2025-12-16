@@ -1,9 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = process.env.API_KEY || '';
+const ai = new GoogleGenAI({ apiKey });
 
 export const askAIPharmacist = async (question: string, contextMeds: string): Promise<string> => {
-  if (!process.env.API_KEY) return "Error: API Key no configurada.";
+  if (!apiKey) return "Error: API Key no configurada.";
 
   try {
     const systemInstruction = `
