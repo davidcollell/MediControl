@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { HistoryLog, Medication } from '../types';
 import { getLogs, updateLog, deleteLog, getMedications } from '../services/storage';
-import { Calendar, CheckCircle2, Pencil, Trash2, X, Save, Clock, BarChart3, TrendingUp, Award, Ban, Check } from 'lucide-react';
+import { Calendar as CalendarIcon, Pencil, Trash2, X, Save, Clock, TrendingUp, Award, Ban, Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import { Button } from './Button';
 
 export const History: React.FC = () => {
   const [logs, setLogs] = useState<HistoryLog[]>([]);
-  const [dailyTarget, setDailyTarget] = useState<number>(0);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  
+  // Estats per al Calendari
+  const [currentDate, setCurrentDate] = useState(new Date()); // Mes que estem veient
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null); // Dia seleccionat per filtrar llista
+
+  // Estats per a l'Edició
   const [editingLog, setEditingLog] = useState<HistoryLog | null>(null);
   const [editDate, setEditDate] = useState<string>('');
   const [editStatus, setEditStatus] = useState<'taken' | 'skipped'>('taken');
@@ -16,13 +22,8 @@ export const History: React.FC = () => {
   }, []);
 
   const refreshData = () => {
-    const allLogs = getLogs();
-    setLogs(allLogs.reverse()); // Ordenat del més recent al més antic
-    
-    // Calcular l'objectiu diari basat en medicaments actius "Cada dia"
-    const meds = getMedications();
-    const dailyMedsCount = meds.filter(m => m.frequency === 'Cada dia').length;
-    setDailyTarget(dailyMedsCount);
+    setLogs(getLogs().reverse());
+    setMedications(getMedications());
   };
 
   const handleEditClick = (log: HistoryLog) => {
@@ -53,66 +54,85 @@ export const History: React.FC = () => {
     }
   };
 
-  // --- CÀLCULS ESTADÍSTICS ---
+  // --- LÒGICA DEL CALENDARI ---
 
-  // 1. Dades Setmanals (Últims 7 dies)
-  const getLast7DaysData = () => {
-    const data = [];
-    const today = new Date();
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const days = new Date(year, month + 1, 0).getDate();
+    const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0 = Dg, 1 = Dl
     
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const dateStr = d.toDateString();
-      
-      // Només comptem els que tenen status 'taken'
-      const takenCount = logs.filter(l => 
-        new Date(l.takenAt).toDateString() === dateStr && l.status === 'taken'
-      ).length;
+    // Ajustar perquè la setmana comenci en Dilluns (standard català/europeu)
+    // 0 (Dg) -> 6, 1 (Dl) -> 0, etc.
+    const adjustedFirstDay = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
 
-      // Evitem dividir per 0 si no hi ha medicaments configurats
-      const target = dailyTarget || 1; 
-      // Limitem al 100% visualment encara que n'hagis pres més (p.ex. "Si és necessari")
-      const percentage = Math.min(100, Math.round((takenCount / target) * 100));
-      
-      data.push({
-        dayName: d.toLocaleDateString('ca-ES', { weekday: 'short' }).slice(0, 2),
-        fullDate: dateStr,
-        percentage,
-        count: takenCount,
-        isToday: i === 0
-      });
-    }
-    return data;
+    return { days, firstDayOfWeek: adjustedFirstDay };
   };
 
-  // 2. Dades Mensuals (Mes actual)
+  const changeMonth = (offset: number) => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + offset);
+    setCurrentDate(newDate);
+    setSelectedDay(null); // Reset selection on month change
+  };
+
+  const getDayStatus = (day: number) => {
+    const checkDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    const dateStr = checkDate.toDateString();
+    const dayOfWeek = checkDate.getDay(); // 0 = Dg, 1 = Dl...
+
+    // 1. Calcular Dosis Esperades (Expected)
+    let expectedCount = 0;
+    medications.forEach(med => {
+      // Sumem quantes preses toquen avui segons l'horari
+      const schedulesToday = med.schedules.filter(s => s.days.includes(dayOfWeek));
+      expectedCount += schedulesToday.length;
+    });
+
+    // 2. Calcular Dosis Preses (Actual)
+    const logsForDay = logs.filter(l => 
+      new Date(l.takenAt).toDateString() === dateStr && l.status === 'taken'
+    );
+    const takenCount = logsForDay.length;
+
+    // 3. Determinar Estat
+    if (expectedCount === 0) return 'none'; // Dia de descans
+    if (takenCount >= expectedCount) return 'perfect';
+    if (takenCount > 0) return 'partial';
+    
+    // Si no n'he pres cap, però n'havia de prendre, comprovem si el dia ja ha passat
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    if (checkDate < today) return 'missed';
+    
+    return 'pending'; // Dia futur o avui sense començar
+  };
+
+  const { days, firstDayOfWeek } = getDaysInMonth(currentDate);
+  const monthName = currentDate.toLocaleDateString('ca-ES', { month: 'long', year: 'numeric' });
+
+  // --- DADES MENSUALS GENERALS ---
   const getMonthlyStats = () => {
     const now = new Date();
     const currentMonthLogs = logs.filter(l => {
       const d = new Date(l.takenAt);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
-
-    const daysInMonthSoFar = now.getDate();
-    // Estimació simple: Objectiu diari * dies transcorreguts
-    const totalExpected = (dailyTarget || 1) * daysInMonthSoFar; 
-    const totalTaken = currentMonthLogs.filter(l => l.status === 'taken').length;
     
-    const monthlyAdherence = dailyTarget > 0 
-      ? Math.round((totalTaken / totalExpected) * 100) 
-      : 0;
-
-    return {
-      totalTaken,
-      adherence: Math.min(100, monthlyAdherence)
-    };
+    const totalTaken = currentMonthLogs.filter(l => l.status === 'taken').length;
+    // L'adherència global és més complexa de calcular exactament sense historial d'horaris,
+    // així que mostrem el total acumulat com a mètrica positiva.
+    return { totalTaken };
   };
 
-  const weeklyData = getLast7DaysData();
   const monthlyStats = getMonthlyStats();
 
-  const groupedLogs = logs.slice(0, 50).reduce((acc, log) => {
+  // --- FILTRATGE DE LLISTA ---
+  const filteredLogs = selectedDay 
+    ? logs.filter(l => new Date(l.takenAt).toDateString() === selectedDay.toDateString())
+    : logs;
+
+  const groupedLogs = filteredLogs.slice(0, 50).reduce((acc, log) => {
     const date = new Date(log.takenAt).toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' });
     if (!acc[date]) acc[date] = [];
     acc[date].push(log);
@@ -120,103 +140,118 @@ export const History: React.FC = () => {
   }, {} as Record<string, HistoryLog[]>);
 
   return (
-    <div className="space-y-8 pb-32">
+    <div className="space-y-6 pb-32">
       <header>
-        <h1 className="text-3xl font-black text-slate-900">Historial i Progrés</h1>
-        <p className="text-xl text-slate-500">La teva constància al detall.</p>
+        <h1 className="text-3xl font-black text-slate-900">Historial</h1>
+        <p className="text-xl text-slate-500">Calendari d'adherència.</p>
       </header>
 
-      {/* SECCIÓ ESTADÍSTIQUES */}
-      <div className="grid gap-4">
-        {/* Gràfic Setmanal */}
-        <div className="bg-white p-6 rounded-3xl border-2 border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-6 h-6 text-sky-600" />
-              <h2 className="text-lg font-bold text-slate-800">Últims 7 dies</h2>
-            </div>
-          </div>
-          
-          <div className="flex justify-between items-end h-48 gap-3">
-            {weeklyData.map((day, idx) => {
-              // Determinem color segons %
-              let barColor = 'bg-slate-200';
-              let shadowColor = 'transparent';
-              
-              if (day.count > 0) {
-                 if (day.percentage >= 100) {
-                   barColor = 'bg-emerald-500';
-                   shadowColor = 'shadow-emerald-200';
-                 } else if (day.percentage >= 50) {
-                   barColor = 'bg-sky-500';
-                   shadowColor = 'shadow-sky-200';
-                 } else {
-                   barColor = 'bg-orange-400';
-                   shadowColor = 'shadow-orange-200';
-                 }
-              }
+      {/* RESUM MENSUAL SIMPLE */}
+      <div className="bg-sky-50 p-5 rounded-3xl border-2 border-sky-100 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-4">
+           <div className="bg-sky-100 p-3 rounded-2xl text-sky-600">
+             <Award className="w-8 h-8" />
+           </div>
+           <div>
+             <span className="block text-3xl font-black text-slate-800">{monthlyStats.totalTaken}</span>
+             <span className="text-sm font-bold text-slate-500 uppercase tracking-wide">Preses aquest mes</span>
+           </div>
+        </div>
+        <TrendingUp className="w-12 h-12 text-sky-200" />
+      </div>
 
-              // Assegurem que la barra tingui un mínim d'alçada estètica si hi ha preses (encara que sigui baix %)
-              // o un mínim absolut per al 0 (fons gris)
-              const displayHeight = day.count > 0 ? Math.max(day.percentage, 15) : 100;
-
-              return (
-                <div key={idx} className="flex flex-col items-center gap-3 flex-1 h-full justify-end group">
-                  
-                  {/* Container de la barra */}
-                  <div className="w-full relative flex items-end justify-center h-full">
-                     {/* Fons de la pista */}
-                     <div className="absolute inset-0 bg-slate-100 rounded-2xl w-full"></div>
-                     
-                     {/* Barra de Progrés */}
-                     <div 
-                      className={`w-full relative z-10 rounded-2xl transition-all duration-700 ease-out shadow-lg ${shadowColor} ${barColor}`}
-                      style={{ height: day.count > 0 ? `${displayHeight}%` : '8px' }} 
-                     >
-                       {/* Número dins o sobre la barra */}
-                       {day.count > 0 && (
-                         <div className={`absolute left-1/2 -translate-x-1/2 font-bold text-sm ${day.percentage > 30 ? 'top-2 text-white/90' : '-top-7 text-slate-600'}`}>
-                           {day.count}
-                         </div>
-                       )}
-                     </div>
-                  </div>
-
-                  {/* Etiqueta del dia */}
-                  <span className={`text-sm font-bold uppercase tracking-wide ${day.isToday ? 'text-sky-600' : 'text-slate-400'}`}>
-                    {day.dayName}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+      {/* CALENDARI */}
+      <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 shadow-sm">
+        {/* Navegació Mes */}
+        <div className="flex items-center justify-between mb-6 px-2">
+          <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-100 rounded-full text-slate-600">
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <h2 className="text-xl font-bold text-slate-800 capitalize">{monthName}</h2>
+          <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-100 rounded-full text-slate-600">
+            <ChevronRight className="w-6 h-6" />
+          </button>
         </div>
 
-        {/* Resum Mensual */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-sky-50 p-5 rounded-3xl border-2 border-sky-100 flex flex-col items-center justify-center text-center">
-            <TrendingUp className="w-8 h-8 text-sky-600 mb-2" />
-            <span className="text-3xl font-black text-sky-800">{monthlyStats.adherence}%</span>
-            <span className="text-sm font-bold text-sky-600 uppercase tracking-wide">Compliment Mes</span>
-          </div>
-          <div className="bg-purple-50 p-5 rounded-3xl border-2 border-purple-100 flex flex-col items-center justify-center text-center">
-            <Award className="w-8 h-8 text-purple-600 mb-2" />
-            <span className="text-3xl font-black text-purple-800">{monthlyStats.totalTaken}</span>
-            <span className="text-sm font-bold text-purple-600 uppercase tracking-wide">Total Preses</span>
-          </div>
+        {/* Capçaleres Dies Setmana */}
+        <div className="grid grid-cols-7 mb-2">
+          {['Dl', 'Dm', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'].map(d => (
+            <div key={d} className="text-center text-xs font-bold text-slate-400 uppercase">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Dies */}
+        <div className="grid grid-cols-7 gap-2">
+          {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+            <div key={`empty-${i}`} className="aspect-square"></div>
+          ))}
+          
+          {Array.from({ length: days }).map((_, i) => {
+            const dayNum = i + 1;
+            const status = getDayStatus(dayNum);
+            const isSelected = selectedDay?.getDate() === dayNum && selectedDay?.getMonth() === currentDate.getMonth();
+            const isToday = new Date().getDate() === dayNum && new Date().getMonth() === currentDate.getMonth() && new Date().getFullYear() === currentDate.getFullYear();
+
+            let bgClass = 'bg-slate-50 text-slate-400';
+            if (status === 'perfect') bgClass = 'bg-emerald-400 text-white shadow-emerald-200';
+            else if (status === 'partial') bgClass = 'bg-orange-400 text-white shadow-orange-200';
+            else if (status === 'missed') bgClass = 'bg-red-400 text-white shadow-red-200';
+            else if (status === 'pending') bgClass = 'bg-slate-100 text-slate-500';
+
+            if (isSelected) bgClass += ' ring-4 ring-sky-300 z-10 scale-110';
+            if (isToday && !isSelected) bgClass += ' ring-2 ring-sky-200';
+
+            return (
+              <button
+                key={dayNum}
+                onClick={() => {
+                  const newSelected = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNum);
+                  if (selectedDay && selectedDay.getTime() === newSelected.getTime()) {
+                    setSelectedDay(null); // Deselect
+                  } else {
+                    setSelectedDay(newSelected);
+                  }
+                }}
+                className={`aspect-square rounded-xl flex items-center justify-center font-bold text-sm transition-all shadow-sm ${bgClass}`}
+              >
+                {dayNum}
+              </button>
+            );
+          })}
+        </div>
+        
+        {/* Llegenda */}
+        <div className="flex justify-center gap-4 mt-6 text-xs font-medium text-slate-500">
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-400"></div>Complet</div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-400"></div>Parcial</div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-400"></div>Oblidat</div>
         </div>
       </div>
 
       {/* LLISTAT DE REGISTRES */}
       <div className="space-y-6 pt-4 border-t-2 border-slate-100">
-        <h2 className="text-xl font-bold text-slate-800">Registre Detallat</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-800">
+            {selectedDay ? `Registres del ${selectedDay.toLocaleDateString()}` : 'Últims Registres'}
+          </h2>
+          {selectedDay && (
+            <button 
+              onClick={() => setSelectedDay(null)}
+              className="text-sm font-bold text-sky-600 flex items-center gap-1 bg-sky-50 px-3 py-1 rounded-full"
+            >
+              <RotateCcw className="w-4 h-4" /> Veure tot
+            </button>
+          )}
+        </div>
         
         {Object.entries(groupedLogs).map(([date, dayLogs]) => {
           const logsForDay = dayLogs as HistoryLog[];
           return (
             <div key={date}>
               <div className="flex items-center gap-3 mb-4 text-sm font-bold text-slate-500 uppercase tracking-wide px-2">
-                <Calendar className="w-4 h-4" />
+                <CalendarIcon className="w-4 h-4" />
                 {date}
               </div>
               <div className="bg-white rounded-3xl border-2 border-slate-100 shadow-sm overflow-hidden">
@@ -268,9 +303,9 @@ export const History: React.FC = () => {
           );
         })}
 
-        {logs.length === 0 && (
-          <div className="text-center py-10 text-slate-400 text-lg">
-            No hi ha dades suficients per mostrar estadístiques.
+        {filteredLogs.length === 0 && (
+          <div className="text-center py-10 bg-slate-50 rounded-3xl border-2 border-slate-100 border-dashed">
+            <p className="text-slate-400 text-lg">No hi ha registres per mostrar.</p>
           </div>
         )}
       </div>
