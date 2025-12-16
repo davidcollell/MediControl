@@ -25,42 +25,45 @@ export default function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Detecció d'instal·lació per Android
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setInstallPrompt(e);
+      console.log("App instal·lable detectada");
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
+    // Listener per missatges del Service Worker (PWA)
     const handleServiceWorkerMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'MARK_TAKEN') {
-        // Feedback hàptic
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
           navigator.vibrate(50);
         }
 
         const { medId, medName } = event.data;
-        // Nota: En aquest context simple des del SW, no sabem l'hora programada exacta
-        // si hi ha múltiples dosis molt seguides, però per UX immediata és suficient.
         const newLog: HistoryLog = {
           id: crypto.randomUUID(),
           medicationId: medId,
           medicationName: medName,
           takenAt: new Date().toISOString(),
           status: 'taken'
-          // scheduledTime: podria inferir-se de l'hora actual
         };
         saveLog(newLog);
         refreshMedications();
         setUpdateTrigger(prev => prev + 1);
       }
     };
-    navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    }
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      if (navigator.serviceWorker) {
+        navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+      }
     };
   }, []);
 
@@ -70,7 +73,7 @@ export default function App() {
 
   const requestNotificationPermission = async () => {
     if ('Notification' in window) {
-      if (Notification.permission !== 'granted') {
+      if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
         await Notification.requestPermission();
       }
     }
@@ -101,16 +104,10 @@ export default function App() {
       const todaysLogs = logs.filter(log => new Date(log.takenAt).toDateString() === today);
 
       for (const med of medications) {
-        // Comprovem tots els horaris del medicament
         for (const schedule of med.schedules) {
-          // 1. És el dia correcte?
           if (!schedule.days.includes(currentDay)) continue;
-
-          // 2. És l'hora correcta?
           if (schedule.time !== timeString) continue;
 
-          // 3. Ja s'ha pres aquesta dosi específica?
-          // Busquem un log d'avui per aquest med que tingui aquesta hora programada o que s'hagi pres en el darrer minut
           const alreadyTaken = todaysLogs.some(l => 
             l.medicationId === med.id && 
             (l.scheduledTime === schedule.time)
@@ -119,14 +116,15 @@ export default function App() {
           const alarmEnabled = med.hasAlarm !== false;
 
           if (!alreadyTaken && alarmEnabled && Notification.permission === 'granted') {
+             // Notificacions PWA via Service Worker
              const registration = await navigator.serviceWorker.getRegistration();
              
              if (registration) {
                registration.showNotification(`Hora de la pastilla: ${med.name}`, {
                  body: `Has de prendre ${med.dosage}. Toca 'Prendre' per confirmar.`,
-                 icon: APP_ICON_URI,
+                 icon: APP_ICON_URI, // En producció s'hauria de fer servir una URL de fitxer, no base64
                  badge: APP_ICON_URI,
-                 tag: `med-${med.id}-${schedule.time}-${today}`, // Tag únic per dosi
+                 tag: `med-${med.id}-${schedule.time}-${today}`,
                  renotify: true,
                  requireInteraction: true,
                  data: { medId: med.id, medName: med.name },
@@ -135,6 +133,7 @@ export default function App() {
                  ]
                } as any);
              } else {
+               // Fallback local notification
                new Notification(`Hora de la pastilla: ${med.name}`, {
                  body: `Has de prendre ${med.dosage}.`,
                  icon: APP_ICON_URI
@@ -164,36 +163,36 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {!isOnline && (
-        <div className="bg-slate-800 text-white px-4 py-3 text-sm font-bold text-center flex items-center justify-center gap-2">
-          <WifiOff className="w-5 h-5" /> SENSE INTERNET
+        <div className="bg-slate-800 text-white px-4 py-3 text-sm font-bold text-center flex items-center justify-center gap-2 animate-pulse sticky top-0 z-50">
+          <WifiOff className="w-5 h-5" /> SENSE INTERNET - MODE OFFLINE
         </div>
       )}
 
       <main className="max-w-md mx-auto min-h-screen bg-slate-50 relative shadow-2xl shadow-slate-200">
-        <div className="p-6 pt-8">
+        <div className="p-4 pt-6 pb-32">
           {renderContent()}
         </div>
 
-        {/* Navigation Bar */}
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-slate-200 pb-safe">
-            <div className="max-w-md mx-auto flex justify-around items-center px-2 py-4">
+        {/* Navigation Bar - Taller and bigger for accessibility */}
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-slate-200 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <div className="max-w-md mx-auto flex justify-around items-center px-1 py-3">
               <NavButton 
                 active={activeTab === 'dashboard'} 
                 onClick={() => setActiveTab('dashboard')} 
-                icon={<LayoutDashboard className="w-8 h-8" />} 
-                label="Avui" 
+                icon={<LayoutDashboard className="w-9 h-9" />} 
+                label="AVUI" 
               />
               <NavButton 
                 active={activeTab === 'meds'} 
                 onClick={() => setActiveTab('meds')} 
-                icon={<Pill className="w-8 h-8" />} 
-                label="Meds" 
+                icon={<Pill className="w-9 h-9" />} 
+                label="PASTILLES" 
               />
               <NavButton 
                 active={activeTab === 'history'} 
                 onClick={() => setActiveTab('history')} 
-                icon={<HistoryIcon className="w-8 h-8" />} 
-                label="Historial" 
+                icon={<HistoryIcon className="w-9 h-9" />} 
+                label="HISTORIAL" 
               />
             </div>
         </nav>
@@ -212,8 +211,8 @@ interface NavButtonProps {
 const NavButton: React.FC<NavButtonProps> = ({ active, onClick, icon, label }) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-colors duration-200 min-w-[70px] ${
-      active ? 'text-sky-700 bg-sky-100 font-bold' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100 font-medium'
+    className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition-all duration-200 w-full active:scale-95 touch-manipulation ${
+      active ? 'text-sky-800 bg-sky-100 font-black scale-105 ring-2 ring-sky-200' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50 font-bold'
     }`}
   >
     {icon}

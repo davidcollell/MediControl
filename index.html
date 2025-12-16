@@ -5,25 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#0ea5e9" />
     
-    <!-- PWA settings for iOS -->
+    <!-- PWA settings for iOS & Android -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MediControl">
     
     <title>MediControl IA</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Icons are now handled by VitePWA injected manifest -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNTMuOSAxNTguMWMtMzEuMi0zMS4yLTgxLjktMzEuMi0xMTMuMSAwTDE1OC4xIDI0MC44Yy0zMS4yIDMxLjItMzEuMiA4MS45IDAgMTEzLjFzODEuOSAzMS4yIDExMy4xIDBsODIuNy04Mi43YzMxLjItMzEuMiAzMS4yLTgxLjkgMC0xMTMuMXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjMyIDI4MGw0OC00OCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNDIwIDgwbDEyIDMyIDMyIDEyLTMyIDEyLTEyIDMyLTEyLTMyLTMyLTEyIDMyLTEyeiIgZmlsbD0iI2ZkZTA0NyIvPjwvc3ZnPg==">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNTMuOSAxNTguMWMtMzEuMi0zMS4yLTgxLjktMzEuMi0xMTMuMSAwTDE1OC4xIDI0MC44Yy0zMS4yIDMxLjItMzEuMiA4MS45IDAgMTEzLjFzODEuOSAzMS4yIDExMy4xIDBsODIuNy04Mi43YzMxLjItMzEuMiAzMS4yLTgxLjkgMC0xMTMuMXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjMyIDI4MGw0OC00OCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNDIwIDgwbDEyIDMyIDMyIDEyLTMyIDEyLTEyIDMyLTEyLTMyLTMyLTEyIDMyLTEyeiIgZmlsbD0iI2ZkZTA0NyIvPjwvc3ZnPg==">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
       :root {
         color-scheme: light;
       }
-      body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+      body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: #f3f4f6;
+        /* Native app feel: prevent pull-to-refresh bounce on Android/Chrome */
+        overscroll-behavior-y: none;
+        /* Prevent text selection unless needed */
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      /* Allow text selection in inputs */
+      input, textarea {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+      
       /* Hide scrollbar for Chrome, Safari and Opera */
       .no-scrollbar::-webkit-scrollbar {
           display: none;
@@ -41,25 +54,21 @@
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
     "react/": "https://esm.sh/react@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.561.0"
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite-plugin-pwa": "https://esm.sh/vite-plugin-pwa@^1.2.0"
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(registration => console.log('Service Worker registrado con éxito:', registration))
-            .catch(error => console.log('Fallo al registrar Service Worker:', error));
-        });
-      }
-    </script>
+    <script type="module" src="/index.tsx"></script>
+    <!-- Service Worker registration is now handled by vite-plugin-pwa automatically -->
   </body>
 </html>
