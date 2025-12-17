@@ -12,13 +12,14 @@ export const Button: React.FC<ButtonProps> = ({
   className = '', 
   ...props 
 }) => {
-  const baseStyles = "px-4 py-3 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 active:scale-95";
+  // Canvi: Padding molt més gran (py-4), text més gran (text-lg) i font-bold
+  const baseStyles = "px-6 py-4 rounded-2xl font-bold text-lg transition-all duration-200 flex items-center justify-center gap-3 active:scale-95 touch-manipulation min-h-[60px]";
   
   const variants = {
-    primary: "bg-sky-500 text-white shadow-lg shadow-sky-500/30 hover:bg-sky-600",
-    secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
-    danger: "bg-red-50 text-red-600 border border-red-100 hover:bg-red-100",
-    ghost: "bg-transparent text-slate-500 hover:bg-slate-100"
+    primary: "bg-sky-600 text-white shadow-xl shadow-sky-600/20 hover:bg-sky-700 border-2 border-transparent",
+    secondary: "bg-white text-slate-900 border-2 border-slate-300 hover:bg-slate-50",
+    danger: "bg-red-50 text-red-700 border-2 border-red-200 hover:bg-red-100",
+    ghost: "bg-transparent text-slate-700 hover:bg-slate-100"
   };
 
   return (

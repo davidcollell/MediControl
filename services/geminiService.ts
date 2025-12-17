@@ -1,12 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Fix for TS2580: Declare process for TypeScript since it's replaced by Vite at build time
-declare const process: {
-  env: {
-    API_KEY: string;
-  }
-};
-
 const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 

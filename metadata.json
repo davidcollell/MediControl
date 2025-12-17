@@ -1,5 +1,5 @@
 {
-  "name": "MediControl IA",
+  "name": "MediControl",
   "description": "Una aplicació intuïtiva per gestionar la medicació, amb recordatoris i assistència intel·ligent impulsada per Gemini.",
   "requestFramePermissions": [
     "microphone",
