@@ -1,15 +1,7 @@
 export enum Frequency {
   DAILY = 'Cada dia',
   WEEKLY = 'Setmanalment',
-  AS_NEEDED = 'Si és necessari',
-  CUSTOM = 'Personalitzat'
-}
-
-export interface Schedule {
-  id: string;
-  time: string; // HH:mm format
-  days: number[]; // 0-6, on 0 és Diumenge, 1 Dilluns, etc.
-  dose?: string; // Opcional, per si la dosi canvia segons l'hora
+  AS_NEEDED = 'Si és necessari'
 }
 
 export interface Medication {
@@ -17,15 +9,10 @@ export interface Medication {
   name: string;
   dosage: string;
   frequency: Frequency;
-  // time: string; // DEPRECATED: Replaced by schedules
-  schedules: Schedule[]; 
+  time: string; // HH:mm format
   notes?: string;
   color: string;
-  icon?: string;
-  hasAlarm?: boolean;
-  stock: number;
-  unitsPerDose: number;
-  lowStockThreshold: number;
+  enableNotifications: boolean;
 }
 
 export interface HistoryLog {
@@ -34,13 +21,13 @@ export interface HistoryLog {
   medicationName: string;
   takenAt: string; // ISO String
   status: 'taken' | 'skipped';
-  scheduledTime?: string; // Per saber quina dosi del dia era
 }
+
+export type Tab = 'dashboard' | 'meds' | 'history' | 'assistant';
 
 export interface ChatMessage {
   id: string;
   role: 'user' | 'model';
   text: string;
+  isError?: boolean;
 }
-
-export type Tab = 'dashboard' | 'meds' | 'history';

@@ -1,67 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Tab, Medication, HistoryLog } from './types';
-import { getMedications, saveLog, getLogs } from './services/storage';
+import { Tab, Medication } from './types';
+import { getMedications } from './services/storage';
 import { Dashboard } from './components/Dashboard';
 import { MedicationList } from './components/MedicationList';
 import { History } from './components/History';
-import { LayoutDashboard, Pill, History as HistoryIcon, WifiOff } from 'lucide-react';
-
-const APP_ICON_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNTMuOSAxNTguMWMtMzEuMi0zMS4yLTgxLjktMzEuMi0xMTMuMSAwTDE1OC4xIDI0MC44Yy0zMS4yIDMxLjItMzEuMiA4MS45IDAgMTEzLjFzODEuOSAzMS4yIDExMy4xIDBsODIuNy04Mi43YzMxLjItMzEuMiAzMS4yLTgxLjkgMC0xMTMuMXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjMyIDI4MGw0OC00OCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNDIwIDgwbDEyIDMyIDMyIDEyLTMyIDEyLTEyIDMyLTEyLTMyLTMyLTEyIDMyLTEyeiIgZmlsbD0iI2ZkZTA0NyIvPjwvc3ZnPg==";
+import { AIAssistant } from './components/AIAssistant';
+import { LayoutDashboard, Pill, History as HistoryIcon, Bot, Menu } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [medications, setMedications] = useState<Medication[]>([]);
-  const [updateTrigger, setUpdateTrigger] = useState(0);
-  
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // Initial Load
   useEffect(() => {
     refreshMedications();
     requestNotificationPermission();
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    const handleServiceWorkerMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'MARK_TAKEN') {
-        // Feedback hàptic
-        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          navigator.vibrate(50);
-        }
-
-        const { medId, medName } = event.data;
-        // Nota: En aquest context simple des del SW, no sabem l'hora programada exacta
-        // si hi ha múltiples dosis molt seguides, però per UX immediata és suficient.
-        const newLog: HistoryLog = {
-          id: crypto.randomUUID(),
-          medicationId: medId,
-          medicationName: medName,
-          takenAt: new Date().toISOString(),
-          status: 'taken'
-          // scheduledTime: podria inferir-se de l'hora actual
-        };
-        saveLog(newLog);
-        refreshMedications();
-        setUpdateTrigger(prev => prev + 1);
-      }
-    };
-    navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
-    };
   }, []);
 
   const refreshMedications = () => {
@@ -76,124 +29,83 @@ export default function App() {
     }
   };
 
-  const handleInstallClick = () => {
-    if (installPrompt) {
-      installPrompt.prompt();
-      installPrompt.userChoice.then((choiceResult: any) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        }
-        setInstallPrompt(null);
-      });
-    }
-  };
-
+  // Basic Alarm System Check (Runs every minute)
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const interval = setInterval(() => {
       const now = new Date();
       const currentHours = now.getHours().toString().padStart(2, '0');
       const currentMinutes = now.getMinutes().toString().padStart(2, '0');
       const timeString = `${currentHours}:${currentMinutes}`;
-      const currentDay = now.getDay(); // 0 = Sunday
-      
-      const logs = getLogs();
-      const today = new Date().toDateString();
-      const todaysLogs = logs.filter(log => new Date(log.takenAt).toDateString() === today);
 
-      for (const med of medications) {
-        // Comprovem tots els horaris del medicament
-        for (const schedule of med.schedules) {
-          // 1. És el dia correcte?
-          if (!schedule.days.includes(currentDay)) continue;
-
-          // 2. És l'hora correcta?
-          if (schedule.time !== timeString) continue;
-
-          // 3. Ja s'ha pres aquesta dosi específica?
-          // Busquem un log d'avui per aquest med que tingui aquesta hora programada o que s'hagi pres en el darrer minut
-          const alreadyTaken = todaysLogs.some(l => 
-            l.medicationId === med.id && 
-            (l.scheduledTime === schedule.time)
-          );
-          
-          const alarmEnabled = med.hasAlarm !== false;
-
-          if (!alreadyTaken && alarmEnabled && Notification.permission === 'granted') {
-             const registration = await navigator.serviceWorker.getRegistration();
-             
-             if (registration) {
-               registration.showNotification(`Hora de la pastilla: ${med.name}`, {
-                 body: `Has de prendre ${med.dosage}. Toca 'Prendre' per confirmar.`,
-                 icon: APP_ICON_URI,
-                 badge: APP_ICON_URI,
-                 tag: `med-${med.id}-${schedule.time}-${today}`, // Tag únic per dosi
-                 renotify: true,
-                 requireInteraction: true,
-                 data: { medId: med.id, medName: med.name },
-                 actions: [
-                   { action: 'mark-taken', title: '✅ Prendre', type: 'button' }
-                 ]
-               } as any);
-             } else {
-               new Notification(`Hora de la pastilla: ${med.name}`, {
-                 body: `Has de prendre ${med.dosage}.`,
-                 icon: APP_ICON_URI
-               });
-             }
-          }
+      medications.forEach(med => {
+        // Check time, permission, AND if notifications are enabled for this specific med
+        // Note: med.enableNotifications ?? true ensures backward compatibility if field is missing
+        const shouldNotify = med.enableNotifications ?? true;
+        
+        if (med.time === timeString && Notification.permission === 'granted' && shouldNotify) {
+           // Prevent spamming notification in the same minute using a simple check mechanism if needed
+           // For this demo, we assume the user takes action or ignores.
+           new Notification(`Hora de la pastilla: ${med.name}`, {
+             body: `Has de prendre ${med.dosage}.`,
+             icon: 'https://picsum.photos/192/192'
+           });
         }
-      }
-    }, 60000); 
+      });
+    }, 60000); // Check every minute
 
     return () => clearInterval(interval);
-  }, [medications, updateTrigger]); 
+  }, [medications]);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard medications={medications} onUpdate={refreshMedications} installPrompt={installPrompt} onInstall={handleInstallClick} />;
+        return <Dashboard medications={medications} onUpdate={refreshMedications} />;
       case 'meds':
         return <MedicationList medications={medications} onUpdate={refreshMedications} />;
       case 'history':
         return <History />;
+      case 'assistant':
+        return <AIAssistant medications={medications} />;
       default:
-        return <Dashboard medications={medications} onUpdate={refreshMedications} installPrompt={installPrompt} onInstall={handleInstallClick} />;
+        return <Dashboard medications={medications} onUpdate={refreshMedications} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {!isOnline && (
-        <div className="bg-slate-800 text-white px-4 py-3 text-sm font-bold text-center flex items-center justify-center gap-2">
-          <WifiOff className="w-5 h-5" /> SENSE INTERNET
-        </div>
-      )}
-
+      
+      {/* Main Content Area */}
       <main className="max-w-md mx-auto min-h-screen bg-slate-50 relative shadow-2xl shadow-slate-200">
         <div className="p-6 pt-8">
           {renderContent()}
         </div>
 
-        {/* Navigation Bar */}
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-slate-200 pb-safe">
-            <div className="max-w-md mx-auto flex justify-around items-center px-2 py-4">
+        {/* Bottom Navigation */}
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 pb-safe">
+            <div className="max-w-md mx-auto flex justify-around items-center px-2 py-3">
               <NavButton 
                 active={activeTab === 'dashboard'} 
                 onClick={() => setActiveTab('dashboard')} 
-                icon={<LayoutDashboard className="w-8 h-8" />} 
+                icon={<LayoutDashboard className="w-6 h-6" />} 
                 label="Avui" 
               />
               <NavButton 
                 active={activeTab === 'meds'} 
                 onClick={() => setActiveTab('meds')} 
-                icon={<Pill className="w-8 h-8" />} 
+                icon={<Pill className="w-6 h-6" />} 
                 label="Meds" 
               />
               <NavButton 
                 active={activeTab === 'history'} 
                 onClick={() => setActiveTab('history')} 
-                icon={<HistoryIcon className="w-8 h-8" />} 
+                icon={<HistoryIcon className="w-6 h-6" />} 
                 label="Historial" 
+              />
+              <NavButton 
+                active={activeTab === 'assistant'} 
+                onClick={() => setActiveTab('assistant')} 
+                icon={<Bot className="w-6 h-6" />} 
+                label="MediBot" 
               />
             </div>
         </nav>
@@ -212,11 +124,11 @@ interface NavButtonProps {
 const NavButton: React.FC<NavButtonProps> = ({ active, onClick, icon, label }) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-colors duration-200 min-w-[70px] ${
-      active ? 'text-sky-700 bg-sky-100 font-bold' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100 font-medium'
+    className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors duration-200 ${
+      active ? 'text-sky-600 bg-sky-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
     }`}
   >
     {icon}
-    <span className="text-sm tracking-wide">{label}</span>
+    <span className="text-[10px] font-medium tracking-wide">{label}</span>
   </button>
 );
