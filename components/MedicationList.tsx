@@ -4,7 +4,7 @@ import { saveMedication, deleteMedication } from '../services/storage';
 import { Button } from './Button';
 import { 
   Plus, Trash2, Pill, AlertTriangle, RefreshCw, X, Check, Bell, BellOff, Clock,
-  Tablets, Syringe, Droplets, Wind, Heart, Zap, Thermometer, Baby, Pencil, Scale
+  Tablets, Syringe, Droplets, Wind, Heart, Zap, Thermometer, Baby, Pencil, Scale, MessageSquare
 } from 'lucide-react';
 
 interface MedicationListProps {
@@ -67,6 +67,7 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
   const [formData, setFormData] = useState<Partial<Medication>>({
     name: '',
     dosage: '',
+    reminderMessage: '',
     schedules: [{ id: 'init', time: '08:00', days: [0,1,2,3,4,5,6], dose: '' }],
     color: 'blue',
     icon: 'pill',
@@ -83,6 +84,7 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
       id: editingId || crypto.randomUUID(),
       name: formData.name,
       dosage: formData.dosage || '1 unitat',
+      reminderMessage: formData.reminderMessage || '',
       frequency: Frequency.CUSTOM,
       schedules: formData.schedules,
       color: formData.color || 'blue',
@@ -104,6 +106,7 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
     setFormData({ 
       name: '', 
       dosage: '', 
+      reminderMessage: '',
       schedules: [{ id: crypto.randomUUID(), time: '08:00', days: [0,1,2,3,4,5,6], dose: '' }],
       color: 'blue',
       icon: 'pill',
@@ -118,6 +121,7 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
     setFormData({
       name: med.name,
       dosage: med.dosage,
+      reminderMessage: med.reminderMessage || '',
       schedules: JSON.parse(JSON.stringify(med.schedules)),
       color: med.color,
       icon: med.icon,
@@ -193,28 +197,43 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
         </header>
         
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-lg font-bold text-slate-800 mb-2">Nom del medicament</label>
-            <input
-              type="text"
-              required
-              className="w-full p-4 text-xl rounded-2xl border-2 border-slate-300 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-200 bg-white text-slate-900"
-              placeholder="Ex: Ibuprofè"
-              value={formData.name}
-              onChange={e => setFormData({...formData, name: e.target.value})}
-            />
-          </div>
+          <div className="bg-white p-5 rounded-3xl border-2 border-slate-100 shadow-sm space-y-6">
+            <div>
+              <label className="block text-lg font-bold text-slate-800 mb-2">Nom del medicament</label>
+              <input
+                type="text"
+                required
+                className="w-full p-4 text-xl rounded-2xl border-2 border-slate-300 focus:outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-200 bg-white text-slate-900"
+                placeholder="Ex: Ibuprofè"
+                value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
+              />
+            </div>
 
-          <div>
-            <label className="block text-lg font-bold text-slate-800 mb-2">Dosi General</label>
-            <input
-              type="text"
-              className="w-full p-4 text-xl rounded-2xl border-2 border-slate-300 focus:outline-none focus:border-sky-500 bg-white text-slate-900"
-              placeholder="Ex: 400mg"
-              value={formData.dosage}
-              onChange={e => setFormData({...formData, dosage: e.target.value})}
-            />
-            <p className="text-sm text-slate-500 mt-1 ml-2">Aquesta dosi s'aplicarà per defecte si no n'especifiques una altra a l'horari.</p>
+            <div>
+              <label className="block text-lg font-bold text-slate-800 mb-2">Dosi General</label>
+              <input
+                type="text"
+                className="w-full p-4 text-xl rounded-2xl border-2 border-slate-300 focus:outline-none focus:border-sky-500 bg-white text-slate-900"
+                placeholder="Ex: 400mg"
+                value={formData.dosage}
+                onChange={e => setFormData({...formData, dosage: e.target.value})}
+              />
+            </div>
+
+            <div>
+              <label className="block text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-sky-600" />
+                Missatge del recordatori
+              </label>
+              <textarea
+                className="w-full p-4 text-lg rounded-2xl border-2 border-slate-300 focus:outline-none focus:border-sky-500 bg-white text-slate-900 min-h-[100px]"
+                placeholder="Ex: Pren-t'ho amb l'esmorzar / No oblidis beure aigua..."
+                value={formData.reminderMessage}
+                onChange={e => setFormData({...formData, reminderMessage: e.target.value})}
+              />
+              <p className="text-sm text-slate-500 mt-1 ml-2">Aquest missatge apareixerà a la notificació de l'alarma.</p>
+            </div>
           </div>
 
           {/* SCHEDULES BUILDER */}
@@ -291,9 +310,6 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
             <Button type="button" variant="secondary" onClick={addSchedule} fullWidth className="border-dashed border-2 py-5 text-lg">
               <Plus className="w-6 h-6" /> Afegir una altra presa
             </Button>
-            <p className="text-center text-slate-500 text-sm px-4">
-              Pots afegir múltiples horaris per combinar dies i hores diferents (ex: matins entre setmana i nits els caps de setmana).
-            </p>
           </div>
 
           {/* Alarm Toggle */}
@@ -315,55 +331,54 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
             </label>
           </div>
 
-          {/* Icon Picker */}
-          <div>
-            <label className="block text-lg font-bold text-slate-800 mb-3">Tria el dibuix</label>
-            <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-              {ICONS.map((i) => {
-                const IconComponent = i.component;
-                const isSelected = formData.icon === i.id;
-                return (
+          {/* Icon & Color Picker */}
+          <div className="bg-white p-5 rounded-3xl border-2 border-slate-100 shadow-sm space-y-6">
+            <div>
+              <label className="block text-lg font-bold text-slate-800 mb-3">Tria el dibuix</label>
+              <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+                {ICONS.map((i) => {
+                  const IconComponent = i.component;
+                  const isSelected = formData.icon === i.id;
+                  return (
+                    <button
+                      key={i.id}
+                      type="button"
+                      onClick={() => setFormData({...formData, icon: i.id})}
+                      className={`w-16 h-16 rounded-2xl flex-shrink-0 flex items-center justify-center transition-all border-2 ${
+                        isSelected 
+                          ? 'bg-sky-100 border-sky-500 text-sky-700 shadow-md scale-105' 
+                          : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
+                      }`}
+                    >
+                      <IconComponent className="w-8 h-8" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-lg font-bold text-slate-800 mb-3">Color de la targeta</label>
+              <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                {COLORS.map((c) => (
                   <button
-                    key={i.id}
+                    key={c.id}
                     type="button"
-                    onClick={() => setFormData({...formData, icon: i.id})}
-                    className={`w-16 h-16 rounded-2xl flex-shrink-0 flex items-center justify-center transition-all border-2 ${
-                      isSelected 
-                        ? 'bg-sky-100 border-sky-500 text-sky-700 shadow-md scale-105' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
+                    onClick={() => setFormData({...formData, color: c.id})}
+                    className={`w-14 h-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all ${c.bg} ${
+                      formData.color === c.id 
+                        ? `ring-4 ${c.ring} scale-110 shadow-lg` 
+                        : 'opacity-70 hover:opacity-100'
                     }`}
-                    aria-label={`Seleccionar icona ${i.label}`}
                   >
-                    <IconComponent className="w-8 h-8" />
+                    {formData.color === c.id && <Check className="w-8 h-8 text-white stroke-[3]" />}
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Color Picker */}
-          <div>
-            <label className="block text-lg font-bold text-slate-800 mb-3">Color de la targeta</label>
-            <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-              {COLORS.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setFormData({...formData, color: c.id})}
-                  className={`w-14 h-14 rounded-full flex-shrink-0 flex items-center justify-center transition-all ${c.bg} ${
-                    formData.color === c.id 
-                      ? `ring-4 ${c.ring} scale-110 shadow-lg` 
-                      : 'opacity-70 hover:opacity-100'
-                  }`}
-                  aria-label={`Seleccionar color ${c.label}`}
-                >
-                  {formData.color === c.id && <Check className="w-8 h-8 text-white stroke-[3]" />}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-slate-100 p-6 rounded-3xl space-y-4">
+          <div className="bg-slate-100 p-6 rounded-3xl space-y-4 shadow-inner">
              <div>
               <label className="block text-lg font-bold text-slate-800 mb-2">Estoc Inicial (Quantitat total)</label>
               <input
@@ -401,9 +416,9 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
 
   return (
     <div className="space-y-6 pb-32">
-      <header className="flex justify-between items-center">
+      <header className="flex justify-between items-center px-2">
         <h1 className="text-3xl font-black text-slate-900">Medicaments</h1>
-        <Button onClick={() => setIsAdding(true)} className="!p-4 rounded-full w-16 h-16 shadow-xl">
+        <Button onClick={() => setIsAdding(true)} className="!p-4 rounded-full w-16 h-16 shadow-xl !min-h-0">
           <Plus className="w-8 h-8" />
         </Button>
       </header>
@@ -415,19 +430,26 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
           const IconComponent = getIconComponent(med.icon);
 
           return (
-            <div key={med.id} className={`bg-white p-6 rounded-3xl shadow-sm border-2 ${colorStyles.border} flex flex-col gap-4`}>
+            <div key={med.id} className={`bg-white p-6 rounded-3xl shadow-sm border-2 ${colorStyles.border} flex flex-col gap-4 animate-in fade-in duration-300`}>
               <div className="flex justify-between items-start">
                 <div className="flex items-start gap-4">
                   <div className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 ${colorStyles.bg} ${colorStyles.text}`}>
                     <IconComponent className="w-8 h-8" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-2xl font-bold text-slate-900 leading-tight flex items-center gap-2">
                       {med.name}
                       {med.hasAlarm === false && <BellOff className="w-4 h-4 text-slate-300" />}
                     </h3>
                     <p className="text-lg text-slate-600 mt-1 font-medium">{med.dosage}</p>
                     
+                    {med.reminderMessage && (
+                      <p className="text-sm italic text-slate-500 mt-2 bg-slate-50 p-2 rounded-xl border border-slate-100 flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        "{med.reminderMessage}"
+                      </p>
+                    )}
+
                     {/* Horaris Chips */}
                     <div className="flex flex-wrap gap-2 mt-3">
                       {med.schedules.map((s, idx) => (
@@ -451,21 +473,21 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
                 <div className="flex gap-2">
                   <button 
                     onClick={() => handleEdit(med)}
-                    className="p-3 text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors border-2 border-slate-100"
+                    className="p-3 text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-colors border-2 border-slate-100 active:scale-90"
                     title="Editar medicament"
                   >
                     <Pencil className="w-7 h-7" />
                   </button>
                   <button 
                     onClick={() => handleRefill(med)}
-                    className="p-3 text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-2xl transition-colors border-2 border-sky-100"
+                    className="p-3 text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-2xl transition-colors border-2 border-sky-100 active:scale-90"
                     title="Afegir estoc"
                   >
                     <RefreshCw className="w-7 h-7" />
                   </button>
                   <button 
                     onClick={() => handleDelete(med.id)}
-                    className="p-3 text-red-600 bg-red-50 hover:bg-red-100 rounded-2xl transition-colors border-2 border-red-100"
+                    className="p-3 text-red-600 bg-red-50 hover:bg-red-100 rounded-2xl transition-colors border-2 border-red-100 active:scale-90"
                     title="Eliminar medicament"
                   >
                     <Trash2 className="w-7 h-7" />
@@ -477,8 +499,8 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
         })}
         
         {medications.length === 0 && (
-          <div className="text-center text-slate-400 py-10 text-xl font-medium">
-            Prem el botó <span className="inline-flex items-center justify-center w-8 h-8 bg-sky-600 text-white rounded-full align-middle mx-1">+</span> per començar.
+          <div className="text-center text-slate-400 py-10 text-xl font-medium px-10">
+            Encara no has afegit cap pastilla. <br/> Prem el botó <span className="inline-flex items-center justify-center w-8 h-8 bg-sky-600 text-white rounded-full align-middle mx-1">+</span> per començar.
           </div>
         )}
       </div>

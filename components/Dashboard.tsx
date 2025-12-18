@@ -4,7 +4,7 @@ import { getTodaysLogs, saveLog, saveMedication } from '../services/storage';
 import { Button } from './Button';
 import { 
   Check, Clock, AlertCircle, CalendarDays, Download, AlertTriangle, ChevronDown,
-  Pill, Tablets, Syringe, Droplets, Wind, Heart, Zap, Thermometer, Baby, Bell, BellOff
+  Pill, Tablets, Syringe, Droplets, Wind, Heart, Zap, Thermometer, Baby, Bell, BellOff, MessageSquare
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -253,21 +253,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ medications, onUpdate, ins
 
       {/* SECCIÓ: PENDENTS */}
       <div className="space-y-6">
-        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 px-2">
           <Clock className="w-6 h-6 text-sky-600" />
           Pendents de prendre
         </h2>
 
         {pendingTasks.length === 0 && totalDaily > 0 ? (
-          <div className="text-center py-10 bg-emerald-50 rounded-3xl border-2 border-emerald-100">
-            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-600">
+          <div className="text-center py-10 bg-emerald-50 rounded-3xl border-2 border-emerald-100 mx-2">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-600 shadow-sm">
               <Check className="w-8 h-8 stroke-[3]" />
             </div>
             <p className="text-xl font-bold text-emerald-800">Fantàstic!</p>
-            <p className="text-emerald-700">Has pres tota la medicació d'avui.</p>
+            <p className="text-emerald-700 font-medium">Has pres tota la medicació d'avui.</p>
           </div>
         ) : pendingTasks.length === 0 ? (
-           <div className="text-center py-10 bg-slate-50 rounded-3xl border-2 border-slate-100 border-dashed">
+           <div className="text-center py-10 bg-slate-50 rounded-3xl border-2 border-slate-100 border-dashed mx-2">
             <p className="text-slate-400 text-lg">No tens medicaments programats per avui.</p>
           </div>
         ) : (
@@ -286,65 +286,71 @@ export const Dashboard: React.FC<DashboardProps> = ({ medications, onUpdate, ins
             return (
               <div 
                 key={`${med.id}-${schedule.time}`} 
-                className={`p-6 rounded-3xl border-2 shadow-sm transition-all bg-white ${
+                className={`p-6 rounded-3xl border-2 shadow-sm transition-all bg-white mx-2 animate-in slide-in-from-right-4 duration-300 ${
                   isNext 
                     ? `ring-4 ${theme.ring} ${theme.border}` 
                     : 'border-slate-200'
                 }`}
               >
                 <div className="flex flex-col gap-4">
-                  {isNext && (
-                    <span className={`${theme.bgMedium} ${theme.textDark} px-3 py-1 rounded-lg text-sm font-bold w-fit mb-[-8px]`}>
-                      SEGÜENT DOSI
-                    </span>
-                  )}
-                  
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <Clock className={`w-8 h-8 ${isNext ? theme.icon : 'text-slate-400'}`} />
-                      <span className="text-4xl font-black text-slate-900 tracking-tight">
-                        {schedule.time}
+                  <div className="flex justify-between items-center">
+                    {isNext ? (
+                      <span className={`${theme.bgMedium} ${theme.textDark} px-3 py-1 rounded-lg text-xs font-black tracking-widest uppercase`}>
+                        PROPERA PRESA
                       </span>
-                    </div>
-                    {/* Medication Icon Display in Card */}
-                    <div className={`p-2 rounded-xl ${theme.bgMedium} ${theme.textDark}`}>
-                      <IconComponent className="w-8 h-8" />
+                    ) : <div></div>}
+                    {med.hasAlarm !== false && (
+                      <div className="bg-slate-50 p-2 rounded-full" title="Alarma activada">
+                        <Bell className="w-4 h-4 text-slate-400" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-4 rounded-2xl ${theme.bgMedium} ${theme.textDark}`}>
+                        <IconComponent className="w-10 h-10" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-4xl font-black text-slate-900 tracking-tight leading-none mb-1">
+                          {schedule.time}
+                        </span>
+                        <h3 className="text-2xl font-bold text-slate-800 leading-tight">
+                          {med.name}
+                        </h3>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-3xl font-bold text-slate-900 leading-tight mb-2">
-                        {med.name}
-                      </h3>
-                      <p className="text-2xl text-slate-600 font-medium">
-                        {displayDose}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-2xl text-slate-700 font-black">
+                      {displayDose}
+                    </p>
+                    {med.reminderMessage && (
+                      <p className="text-lg italic text-slate-500 mt-2 flex items-start gap-2">
+                        <MessageSquare className="w-5 h-5 mt-1 flex-shrink-0 text-sky-400" />
+                        <span>{med.reminderMessage}</span>
                       </p>
-                    </div>
-                    {med.hasAlarm !== false && (
-                      <div className="bg-slate-100 p-2 rounded-full" title="Alarma activada">
-                        <Bell className="w-5 h-5 text-slate-400" />
-                      </div>
                     )}
                   </div>
 
                   <Button 
                     onClick={() => handleTake(task)}
                     fullWidth
-                    className={`text-white !text-2xl !py-6 shadow-xl mt-2 ${
+                    className={`text-white !text-2xl !py-7 shadow-xl mt-2 border-b-4 ${
                       isNext 
-                        ? `${theme.btn} shadow-lg` 
-                        : 'bg-slate-700 hover:bg-slate-800'
+                        ? `${theme.btn} border-black/10 active:border-b-0 active:translate-y-1` 
+                        : 'bg-slate-700 hover:bg-slate-800 border-slate-900'
                     }`}
                   >
-                    <Check className="w-8 h-8 mr-2 stroke-[3]" />
+                    <Check className="w-10 h-10 mr-2 stroke-[3]" />
                     PRENDRE ARA
                   </Button>
 
                   {isLowStock && (
                     <div className="mt-2 bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3">
                       <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
-                      <span className="font-bold text-amber-800">Queden {med.stock} unitats</span>
+                      <span className="font-bold text-amber-800">Queden poques unitats ({med.stock})</span>
                     </div>
                   )}
                 </div>
@@ -354,15 +360,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ medications, onUpdate, ins
         )}
       </div>
 
-      {/* SECCIÓ: COMPLETADES (Separada visualment) */}
+      {/* SECCIÓ: COMPLETADES */}
       {completedTasks.length > 0 && (
-        <div className="space-y-4 pt-4 border-t-2 border-slate-200">
-           <h2 className="text-lg font-bold text-slate-500 flex items-center gap-2 opacity-80">
-            <Check className="w-5 h-5" />
-            Ja preses avui
+        <div className="space-y-4 pt-4 border-t-2 border-slate-200 mx-2">
+           <h2 className="text-lg font-bold text-slate-400 flex items-center gap-2 opacity-80 uppercase tracking-widest text-xs">
+            <Check className="w-4 h-4" />
+            Completat avui
           </h2>
           
-          <div className="opacity-70 grayscale-[0.5] hover:opacity-100 hover:grayscale-0 transition-all space-y-3">
+          <div className="opacity-60 space-y-3">
             {completedTasks.map(task => {
               const med = task.medication;
               const schedule = task.schedule;
@@ -371,19 +377,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ medications, onUpdate, ins
               return (
                 <div 
                   key={`${med.id}-${schedule.time}-done`} 
-                  className={`p-4 rounded-2xl border-2 ${theme.border} ${theme.bgLight} flex justify-between items-center`}
+                  className={`p-4 rounded-2xl border-2 ${theme.border} ${theme.bgLight} flex justify-between items-center shadow-sm`}
                 >
                   <div className="flex items-center gap-4">
                      <div className={`${theme.bgMedium} ${theme.textDark} p-2 rounded-xl`}>
                         <IconComponent className="w-6 h-6" />
                      </div>
                      <div>
-                        <span className="text-slate-500 font-bold text-lg block">{schedule.time}</span>
+                        <span className="text-slate-500 font-bold text-lg block leading-none mb-1">{schedule.time}</span>
                         <span className="text-slate-700 font-bold text-xl line-through decoration-slate-400">{med.name}</span>
                      </div>
                   </div>
-                  <div className={`${theme.bgMedium} ${theme.textDark} p-2 rounded-xl`}>
-                    <Check className="w-6 h-6 stroke-[3]" />
+                  <div className="bg-emerald-500 text-white p-2 rounded-full shadow-inner">
+                    <Check className="w-5 h-5 stroke-[4]" />
                   </div>
                 </div>
               );

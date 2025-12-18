@@ -20,6 +20,7 @@ export interface Medication {
   // time: string; // DEPRECATED: Replaced by schedules
   schedules: Schedule[]; 
   notes?: string;
+  reminderMessage?: string; // Missatge personalitzat per a la notificació
   color: string;
   icon?: string;
   hasAlarm?: boolean;

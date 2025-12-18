@@ -6,7 +6,7 @@ import { MedicationList } from './components/MedicationList';
 import { History } from './components/History';
 import { LayoutDashboard, Pill, History as HistoryIcon, WifiOff } from 'lucide-react';
 
-const APP_ICON_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNTMuOSAxNTguMWMtMzEuMi0zMS4yLTgxLjktMzEuMi0xMTMuMSAwTDE1OC4xIDI0MC44Yy0zMS4yIDMxLjItMzEuMiA4MS45IDAgMTEzLjFzODEuOSAzMS4yIDExMy4xIDBsODIuNy04Mi43YzMxLjItMzEuMiAzMS4yLTgxLjkgMC0xMTMuMXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjMyIDI4MGw0OC00OCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48cGF0aCBkPSJNNDIwIDgwbDEyIDMyIDMyIDEyLTMyIDEyLTEyIDMyLTEyLTMyLTMyLTEyIDMyLTEyeiIgZmlsbD0iI2ZkZTA0NyIvPjwvc3ZnPg==";
+const APP_ICON_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNjAgMTUwYy00MC00MC0xMDUtNDAtMTQ1IDBsLTY1IDY1Yy00MCA0MC00MCAxMDUgMCAxNDVzMTA1IDQwIDE0NSAwbDY1LTY1YzQwLTQwIDQwLTEwNSAwLTE0NXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjE1IDIxNWw4MCA4MCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48Y2lyY2xlIGN4PSI0MDAiIGN5PSIxMTAiIHI9IjYwIiBmaWxsPSIjZmRlMDQ3Ii8+PHBhdGggZD0iTTQwMCA5MHY0MG0tMjAtMjBoNDAiIHN0cm9rZT0iIzg1NGQwZSIgc3Ryb2tlLXdpZHRoPSIxMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -118,9 +118,14 @@ export default function App() {
           if (!alreadyTaken && alarmEnabled && Notification.permission === 'granted') {
              const registration = await navigator.serviceWorker.getRegistration();
              
+             // Prepare notification body: user message or default
+             const notificationBody = med.reminderMessage 
+               ? `${med.reminderMessage} (${doseToTake})`
+               : `Has de prendre ${doseToTake}. Toca 'Prendre' per confirmar.`;
+
              if (registration) {
-               registration.showNotification(`Hora de la pastilla: ${med.name}`, {
-                 body: `Has de prendre ${doseToTake}. Toca 'Prendre' per confirmar.`,
+               registration.showNotification(`Hora de: ${med.name}`, {
+                 body: notificationBody,
                  icon: APP_ICON_URI,
                  badge: APP_ICON_URI,
                  tag: `med-${med.id}-${schedule.time}-${today}`,
@@ -132,8 +137,8 @@ export default function App() {
                  ]
                } as any);
              } else {
-               new Notification(`Hora de la pastilla: ${med.name}`, {
-                 body: `Has de prendre ${doseToTake}.`,
+               new Notification(`Hora de: ${med.name}`, {
+                 body: notificationBody,
                  icon: APP_ICON_URI
                });
              }
