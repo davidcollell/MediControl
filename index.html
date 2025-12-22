@@ -11,18 +11,22 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MediControl">
+    <meta name="application-name" content="MediControl">
     
     <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     
     <title>MediControl Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNjAgMTUwYy00MC00MC0xMDUtNDAtMTQ1IDBsLTY1IDY1Yy00MCA0MC00MCAxMDUgMCAxNDVzMTA1IDQwIDE0NSAwbDY1LTY1YzQwLTQwIDQwLTEwNSAwLTE0NXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjE1IDIxNWw4MCA4MCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48Y2lyY2xlIGN4PSI0MDAiIGN5PSIxMTAiIHI9IjYwIiBmaWxsPSIjZmRlMDQ3Ii8+PHBhdGggZD0iTTQwMCA5MHY0MG0tMjAtMjBoNDAiIHN0cm9rZT0iIzg1NGQwZSIgc3Ryb2tlLXdpZHRoPSIxMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+">
-    
     <style>
       :root {
         color-scheme: light;
+      }
+      html, body {
+        height: 100%;
+        overflow: hidden; /* Evita scroll a tot el cos per simular app nativa */
       }
       body { 
         font-family: 'Inter', sans-serif; 
@@ -31,7 +35,8 @@
         padding: 0; 
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        overscroll-behavior-y: contain; /* Evita el pull-to-refresh del Chrome */
+        overscroll-behavior-y: none; /* Bloqueja el pull-to-refresh del navegador */
+        touch-action: pan-x pan-y;
       }
       
       #app-loader {
@@ -77,6 +82,12 @@
         -webkit-tap-highlight-color: transparent;
         outline: none;
       }
+
+      #root {
+        height: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
     </style>
     <script type="importmap">
     {
@@ -104,13 +115,10 @@
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
     <script>
-      // Service Worker Registration for Offline & Native Install
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('SW registered:', registration);
-          }).catch(error => {
-            console.log('SW registration failed:', error);
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('SW active');
           });
         });
       }

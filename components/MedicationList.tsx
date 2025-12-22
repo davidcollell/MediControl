@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Medication, Frequency, Schedule } from '../types';
 import { saveMedication, deleteMedication, saveAllMedications } from '../services/storage';
@@ -5,8 +6,8 @@ import { Button } from './Button';
 import { Settings } from './Settings';
 import { 
   Plus, Trash2, Pill, AlertTriangle, RefreshCw, X, Check, Bell, BellOff, Clock,
-  Pencil, MessageSquare, GripVertical, Move, ArrowUpDown, Settings as SettingsIcon,
-  ChevronUp, ChevronDown, MoreVertical, Sun, Sunrise, Moon, CloudSun
+  Pencil, MessageSquare, GripVertical, ArrowUpDown, Settings as SettingsIcon,
+  ChevronUp, ChevronDown, MoreVertical, Sun, Sunrise, Moon, CloudSun, AlertCircle
 } from 'lucide-react';
 import { Haptics } from '../services/haptics';
 
@@ -32,6 +33,12 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Estats per als diàlegs personalitzats
+  const [deleteTarget, setDeleteTarget] = useState<Medication | null>(null);
+  const [refillTarget, setRefillTarget] = useState<Medication | null>(null);
+  const [refillAmount, setRefillAmount] = useState<number>(30);
+
   const menuRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState<Partial<Medication>>({
@@ -130,21 +137,22 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
     resetForm();
   };
 
-  const handleDelete = (id: string) => {
-    Haptics.warning();
-    if (confirm('Estàs segur que vols eliminar aquest medicament?')) {
-      deleteMedication(id);
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      Haptics.success();
+      deleteMedication(deleteTarget.id);
+      setDeleteTarget(null);
       onUpdate();
     }
   };
 
-  const handleRefill = (med: Medication) => {
-    Haptics.tick();
-    const amount = prompt(`Quantes unitats vols afegir a ${med.name}?`, '30');
-    if (amount && !isNaN(parseInt(amount))) {
+  const confirmRefill = () => {
+    if (refillTarget && refillAmount > 0) {
       Haptics.success();
-      const updatedMed = { ...med, stock: med.stock + parseInt(amount) };
+      const updatedMed = { ...refillTarget, stock: refillTarget.stock + refillAmount };
       saveMedication(updatedMed);
+      setRefillTarget(null);
+      setRefillAmount(30);
       onUpdate();
     }
   };
@@ -217,7 +225,7 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
       <div className="space-y-6 pb-32 animate-in slide-in-from-bottom-4 duration-300">
         <header className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
           <h2 className="text-2xl font-bold text-slate-900">{editingId ? 'Editar Medicament' : 'Nou Medicament'}</h2>
-          <button onClick={handleCancel} className="p-2 bg-slate-100 rounded-full">
+          <button onClick={handleCancel} className="p-2 bg-slate-100 rounded-full active:scale-90 transition-all">
             <X className="w-8 h-8 text-slate-600" />
           </button>
         </header>
@@ -433,14 +441,104 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
 
       {showSettings && <Settings onClose={() => setShowSettings(false)} onUpdate={onUpdate} />}
 
-      {isReordering && (
-        <div className="bg-sky-50 border-2 border-sky-100 p-5 rounded-3xl text-sky-800 animate-in fade-in slide-in-from-top-2 flex items-center gap-4">
-          <div className="bg-white p-2 rounded-xl shadow-sm text-sky-600">
-            <Move className="w-5 h-5" />
+      {/* MODAL D'ELIMINACIÓ */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[110] flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 space-y-6 shadow-2xl animate-in slide-in-from-bottom-8">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center text-rose-500">
+                <Trash2 className="w-10 h-10" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-slate-900">Vols eliminar-lo?</h3>
+                <p className="text-slate-500 font-medium mt-2">
+                  S'esborraran els horaris i la configuració de <span className="font-black text-slate-900">"{deleteTarget.name}"</span>. 
+                  L'historial de preses es mantindrà.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={confirmDelete}
+                className="w-full py-5 bg-rose-600 text-white rounded-[1.8rem] font-black shadow-lg shadow-rose-200 active:scale-95 transition-all"
+              >
+                SÍ, ELIMINAR DEL PLA
+              </button>
+              <button 
+                onClick={() => setDeleteTarget(null)}
+                className="w-full py-5 bg-slate-100 text-slate-600 rounded-[1.8rem] font-black active:scale-95 transition-all"
+              >
+                CANCEL·LAR
+              </button>
+            </div>
           </div>
-          <p className="text-xs font-bold leading-tight">
-            Ordena la teva medicació arrossegant les targetes.
-          </p>
+        </div>
+      )}
+
+      {/* MODAL DE RECARREGA D'ESTOC */}
+      {refillTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[110] flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 space-y-6 shadow-2xl animate-in slide-in-from-bottom-8">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="w-16 h-16 bg-sky-50 rounded-2xl flex items-center justify-center text-sky-600">
+                <RefreshCw className="w-8 h-8" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Recarregar Estoc</h3>
+                <p className="text-slate-500 text-sm font-bold">{refillTarget.name}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+               <div className="flex items-center justify-between bg-slate-50 p-4 rounded-3xl border border-slate-200">
+                  <button 
+                    onClick={() => { Haptics.tick(); setRefillAmount(prev => Math.max(1, prev - 1)); }}
+                    className="w-14 h-14 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-2xl font-black active:scale-90"
+                  >
+                    -
+                  </button>
+                  <div className="text-center">
+                    <span className="text-4xl font-black text-slate-900">{refillAmount}</span>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">UNITATS</p>
+                  </div>
+                  <button 
+                    onClick={() => { Haptics.tick(); setRefillAmount(prev => prev + 1); }}
+                    className="w-14 h-14 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-2xl font-black active:scale-90"
+                  >
+                    +
+                  </button>
+               </div>
+
+               <div className="grid grid-cols-3 gap-2">
+                 {[10, 30, 60].map(val => (
+                   <button 
+                    key={val}
+                    onClick={() => { Haptics.tick(); setRefillAmount(val); }}
+                    className={`py-3 rounded-2xl font-black text-xs transition-all ${
+                      refillAmount === val ? 'bg-sky-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500'
+                    }`}
+                   >
+                     +{val}
+                   </button>
+                 ))}
+               </div>
+            </div>
+
+            <div className="flex flex-col gap-3 pt-4">
+              <button 
+                onClick={confirmRefill}
+                className="w-full py-5 bg-emerald-600 text-white rounded-[1.8rem] font-black shadow-lg shadow-emerald-200 active:scale-95 transition-all flex items-center justify-center gap-3"
+              >
+                <Check className="w-6 h-6" /> ACTUALITZAR ESTOC
+              </button>
+              <button 
+                onClick={() => setRefillTarget(null)}
+                className="w-full py-5 bg-slate-100 text-slate-600 rounded-[1.8rem] font-black active:scale-95 transition-all"
+              >
+                ARA NO
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -536,19 +634,36 @@ export const MedicationList: React.FC<MedicationListProps> = ({ medications, onU
                     </div>
 
                     <div className="flex justify-between items-center pt-6 border-t border-slate-100 mt-2">
-                      <div className={`flex items-center gap-2 text-xs px-4 py-2 rounded-full font-black uppercase tracking-tight ${isLowStock ? 'bg-amber-100 text-amber-800 ring-4 ring-amber-50' : 'bg-slate-100 text-slate-500'}`}>
-                        {isLowStock ? <AlertTriangle className="w-4 h-4" /> : <Pill className="w-4 h-4" />}
+                      <div 
+                        onClick={() => { Haptics.tick(); setRefillTarget(med); }}
+                        className={`flex items-center gap-2 text-xs px-4 py-3 rounded-2xl font-black uppercase tracking-tight cursor-pointer active:scale-95 transition-all ${
+                          isLowStock ? 'bg-amber-100 text-amber-800 ring-4 ring-amber-50' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}
+                      >
+                        {isLowStock ? <AlertCircle className="w-4 h-4 animate-pulse" /> : <Pill className="w-4 h-4" />}
                         <span>Estoc: {med.stock} unitats</span>
                       </div>
 
                       <div className="flex gap-1">
-                        <button onClick={() => handleEdit(med)} className="p-3 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all active:scale-90">
+                        <button 
+                          onClick={() => handleEdit(med)} 
+                          className="p-4 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all active:scale-90"
+                          title="Editar"
+                        >
                           <Pencil className="w-6 h-6" />
                         </button>
-                        <button onClick={() => handleRefill(med)} className="p-3 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all active:scale-90">
+                        <button 
+                          onClick={() => { Haptics.tick(); setRefillTarget(med); }} 
+                          className="p-4 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-2xl transition-all active:scale-90"
+                          title="Recarregar estoc"
+                        >
                           <RefreshCw className="w-6 h-6" />
                         </button>
-                        <button onClick={() => handleDelete(med.id)} className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all active:scale-90">
+                        <button 
+                          onClick={() => { Haptics.warning(); setDeleteTarget(med); }} 
+                          className="p-4 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all active:scale-90"
+                          title="Eliminar"
+                        >
                           <Trash2 className="w-6 h-6" />
                         </button>
                       </div>

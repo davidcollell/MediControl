@@ -1,3 +1,4 @@
+
 import { Medication, HistoryLog, Schedule, AppSettings } from '../types';
 
 const MEDS_KEY = 'medicontrol_meds';
@@ -31,7 +32,7 @@ export const getMedications = (): Medication[] => {
     if (!med.schedules || med.schedules.length === 0) {
       if (med.time) {
         const newSchedule: Schedule = {
-          id: 'legacy-migration',
+          id: 'legacy-migration-' + Math.random(),
           time: med.time,
           days: [0, 1, 2, 3, 4, 5, 6]
         };

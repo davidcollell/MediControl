@@ -1,23 +1,12 @@
 {
-  "name": "medicontrol",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "medicontrol-pro",
+  "version": "1.0.0",
+  "description": "Gestió de medicació nativa per a Android",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "start": "serve ."
   },
-  "dependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "@google/genai": "^1.33.0",
-    "lucide-react": "^0.561.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
-  }
+  "dependencies": {}
 }
