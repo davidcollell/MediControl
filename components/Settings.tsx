@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AppSettings } from '../types';
 import { getSettings, saveSettings } from '../services/storage';
 import { Button } from './Button';
-import { X, Bell, Clock, Timer, Smartphone, Check, ShieldCheck } from 'lucide-react';
+import { X, Bell, Clock, Timer, Smartphone, Check, ShieldCheck, Send, Info } from 'lucide-react';
 import { Haptics } from '../services/haptics';
 
 interface SettingsProps {
@@ -10,8 +10,11 @@ interface SettingsProps {
   onUpdate: () => void;
 }
 
+const APP_ICON_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNjAgMTUwYy00MC00MC0xMDUtNDAtMTQ1IDBsLTY1IDY1Yy00MCA0MC00MCAxMDUgMCAxNDVzMTA1IDQwIDE0NSAwbDY1LTY1YzQwLTQwIDQwLTEwNSAwLTE0NXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjE1IDIxNWw4MCA4MCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48Y2lyY2xlIGN4PSI0MDAiIGN5PSIxMTAiIHI9IjYwIiBmaWxsPSIjZmRlMDQ3Ii8+PHBhdGggZD0iTTQwMCA5MHY0MG0tMjAtMjBoNDAiIHN0cm9rZT0iIzg1NGQwZSIgc3Ryb2tlLXdpZHRoPSIxMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+";
+
 export const Settings: React.FC<SettingsProps> = ({ onClose, onUpdate }) => {
   const [settings, setSettings] = useState<AppSettings>(getSettings());
+  const [testSent, setTestSent] = useState(false);
 
   const handleToggle = (key: keyof AppSettings) => {
     Haptics.tick();
@@ -27,6 +30,41 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onUpdate }) => {
     setSettings(newSettings);
     saveSettings(newSettings);
     onUpdate();
+  };
+
+  const sendTestNotification = async () => {
+    Haptics.success();
+    if (Notification.permission !== 'granted') {
+      const result = await Notification.requestPermission();
+      if (result !== 'granted') {
+        alert('Si us plau, permet les notificacions a la configuració del teu Android.');
+        return;
+      }
+    }
+
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (registration) {
+      registration.showNotification('Prova de MediControl', {
+        body: 'Això és una notificació de prova. Els teus avisos funcionen correctament!',
+        icon: APP_ICON_URI,
+        badge: APP_ICON_URI,
+        tag: 'test-notification',
+        vibrate: [100, 50, 100],
+        data: { test: true },
+        actions: [
+          // Use double quotes to handle the single quote in D'acord to avoid parsing errors
+          { action: 'mark-taken', title: "✅ D'acord", type: 'button' }
+        ]
+      } as any);
+      
+      setTestSent(true);
+      setTimeout(() => setTestSent(false), 3000);
+    } else {
+      new Notification('Prova de MediControl', {
+        body: 'Els teus avisos funcionen correctament!',
+        icon: APP_ICON_URI
+      });
+    }
   };
 
   return (
@@ -63,6 +101,36 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onUpdate }) => {
                 />
                 <div className="w-14 h-8 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-7 after:w-7 after:transition-all peer-checked:bg-sky-600"></div>
               </label>
+            </div>
+          </section>
+
+          <section className="bg-sky-50 p-5 rounded-3xl border border-sky-100 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-white p-2 rounded-xl text-sky-600 shadow-sm">
+                <Send className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-black text-sky-900 text-sm">Verificació d'avisos</h3>
+                <p className="text-[10px] text-sky-700 font-bold opacity-70">Comprova que el teu Android rep les alertes.</p>
+              </div>
+            </div>
+            <button 
+              onClick={sendTestNotification}
+              disabled={testSent}
+              className={`w-full py-4 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 ${
+                testSent 
+                ? 'bg-emerald-500 text-white' 
+                : 'bg-white text-sky-600 border border-sky-200 shadow-sm active:scale-95'
+              }`}
+            >
+              {testSent ? <Check className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
+              {testSent ? 'ENVIADA!' : 'ENVIAR PROVA'}
+            </button>
+            <div className="flex gap-2 items-start opacity-60">
+              <Info className="w-3 h-3 text-sky-600 mt-0.5 flex-shrink-0" />
+              <p className="text-[9px] font-medium text-sky-800 leading-tight">
+                Si no reps la prova, comprova que MediControl tingui permís de "Notificacions" i que el mode "No molestar" estigui desactivat.
+              </p>
             </div>
           </section>
 
