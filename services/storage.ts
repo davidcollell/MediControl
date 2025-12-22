@@ -1,7 +1,25 @@
-import { Medication, HistoryLog, Schedule } from '../types';
+import { Medication, HistoryLog, Schedule, AppSettings } from '../types';
 
 const MEDS_KEY = 'medicontrol_meds';
 const LOGS_KEY = 'medicontrol_logs';
+const SETTINGS_KEY = 'medicontrol_settings';
+
+const DEFAULT_SETTINGS: AppSettings = {
+  notificationsEnabled: true,
+  snoozeDuration: 10,
+  remindBeforeMinutes: 0,
+  vibrationEnabled: true
+};
+
+export const getSettings = (): AppSettings => {
+  const stored = localStorage.getItem(SETTINGS_KEY);
+  if (!stored) return DEFAULT_SETTINGS;
+  return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+};
+
+export const saveSettings = (settings: AppSettings): void => {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+};
 
 export const getMedications = (): Medication[] => {
   const stored = localStorage.getItem(MEDS_KEY);
@@ -9,15 +27,13 @@ export const getMedications = (): Medication[] => {
   
   const meds: any[] = JSON.parse(stored);
   
-  // Migració en calent per a dades antigues que tenien 'time' però no 'schedules'
   return meds.map(med => {
     if (!med.schedules || med.schedules.length === 0) {
       if (med.time) {
-        // Convertim l'hora antiga en un horari diari
         const newSchedule: Schedule = {
           id: 'legacy-migration',
           time: med.time,
-          days: [0, 1, 2, 3, 4, 5, 6] // Cada dia
+          days: [0, 1, 2, 3, 4, 5, 6]
         };
         return { ...med, schedules: [newSchedule] };
       }
@@ -34,6 +50,10 @@ export const saveMedication = (med: Medication): void => {
   } else {
     meds.push(med);
   }
+  localStorage.setItem(MEDS_KEY, JSON.stringify(meds));
+};
+
+export const saveAllMedications = (meds: Medication[]): void => {
   localStorage.setItem(MEDS_KEY, JSON.stringify(meds));
 };
 

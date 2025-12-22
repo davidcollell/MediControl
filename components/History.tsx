@@ -1,18 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { HistoryLog, Medication } from '../types';
 import { getLogs, updateLog, deleteLog, getMedications } from '../services/storage';
-import { Calendar as CalendarIcon, Pencil, Trash2, X, Save, Clock, TrendingUp, Award, Ban, Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { 
+  Pencil, Trash2, X, Save, Clock, 
+  TrendingUp, Check, ChevronLeft, ChevronRight, 
+  Target, CheckCircle2, XCircle, BarChart3, CalendarDays,
+  CalendarCheck2, Activity
+} from 'lucide-react';
 import { Button } from './Button';
+import { Haptics } from '../services/haptics';
 
 export const History: React.FC = () => {
   const [logs, setLogs] = useState<HistoryLog[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   
-  // Estats per al Calendari
-  const [currentDate, setCurrentDate] = useState(new Date()); // Mes que estem veient
-  const [selectedDay, setSelectedDay] = useState<Date | null>(null); // Dia seleccionat per filtrar llista
+  const [currentDate, setCurrentDate] = useState(new Date()); 
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
-  // Estats per a l'Edició
   const [editingLog, setEditingLog] = useState<HistoryLog | null>(null);
   const [editDate, setEditDate] = useState<string>('');
   const [editStatus, setEditStatus] = useState<'taken' | 'skipped'>('taken');
@@ -27,6 +31,7 @@ export const History: React.FC = () => {
   };
 
   const handleEditClick = (log: HistoryLog) => {
+    Haptics.tick();
     setEditingLog(log);
     const d = new Date(log.takenAt);
     const localIso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
@@ -36,6 +41,7 @@ export const History: React.FC = () => {
 
   const handleSaveEdit = () => {
     if (editingLog && editDate) {
+      Haptics.success();
       const updatedLog: HistoryLog = {
         ...editingLog,
         takenAt: new Date(editDate).toISOString(),
@@ -48,91 +54,68 @@ export const History: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
+    Haptics.warning();
     if (confirm('Segur que vols eliminar aquest registre?')) {
       deleteLog(id);
       refreshData();
     }
   };
 
-  // --- LÒGICA DEL CALENDARI ---
-
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const days = new Date(year, month + 1, 0).getDate();
-    const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0 = Dg, 1 = Dl
-    
-    // Ajustar perquè la setmana comenci en Dilluns (standard català/europeu)
-    // 0 (Dg) -> 6, 1 (Dl) -> 0, etc.
+    const firstDayOfWeek = new Date(year, month, 1).getDay();
     const adjustedFirstDay = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
-
     return { days, firstDayOfWeek: adjustedFirstDay };
   };
 
   const changeMonth = (offset: number) => {
+    Haptics.tick();
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + offset);
     setCurrentDate(newDate);
-    setSelectedDay(null); // Reset selection on month change
+    setSelectedDay(null);
   };
 
-  const getDayStatus = (day: number) => {
-    const checkDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    const dateStr = checkDate.toDateString();
-    const dayOfWeek = checkDate.getDay(); // 0 = Dg, 1 = Dl...
-
-    // 1. Calcular Dosis Esperades (Expected)
+  const getDayData = (date: Date) => {
+    const dateStr = date.toDateString();
+    const dayOfWeek = date.getDay();
     let expectedCount = 0;
+    
     medications.forEach(med => {
-      // Sumem quantes preses toquen avui segons l'horari
       const schedulesToday = med.schedules.filter(s => s.days.includes(dayOfWeek));
       expectedCount += schedulesToday.length;
     });
 
-    // 2. Calcular Dosis Preses (Actual)
-    const logsForDay = logs.filter(l => 
-      new Date(l.takenAt).toDateString() === dateStr && l.status === 'taken'
-    );
-    const takenCount = logsForDay.length;
-
-    // 3. Determinar Estat
-    if (expectedCount === 0) return 'none'; // Dia de descans
-    if (takenCount >= expectedCount) return 'perfect';
-    if (takenCount > 0) return 'partial';
+    const logsForDay = logs.filter(l => new Date(l.takenAt).toDateString() === dateStr);
+    const takenCount = logsForDay.filter(l => l.status === 'taken').length;
+    const skippedCount = logsForDay.filter(l => l.status === 'skipped').length;
     
-    // Si no n'he pres cap, però n'havia de prendre, comprovem si el dia ja ha passat
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    if (checkDate < today) return 'missed';
-    
-    return 'pending'; // Dia futur o avui sense començar
+    return { expectedCount, takenCount, skippedCount };
   };
+
+  const stats = useMemo(() => {
+    const monthLogs = logs.filter(l => {
+      const d = new Date(l.takenAt);
+      return d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear();
+    });
+    
+    const taken = monthLogs.filter(l => l.status === 'taken').length;
+    const total = monthLogs.length;
+    const adherence = total === 0 ? 0 : Math.round((taken / total) * 100);
+
+    return { taken, adherence, total };
+  }, [logs, currentDate]);
 
   const { days, firstDayOfWeek } = getDaysInMonth(currentDate);
   const monthName = currentDate.toLocaleDateString('ca-ES', { month: 'long', year: 'numeric' });
 
-  // --- DADES MENSUALS GENERALS ---
-  const getMonthlyStats = () => {
-    const now = new Date();
-    const currentMonthLogs = logs.filter(l => {
-      const d = new Date(l.takenAt);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    });
-    
-    const totalTaken = currentMonthLogs.filter(l => l.status === 'taken').length;
-    // L'adherència global és més complexa de calcular exactament sense historial d'horaris,
-    // així que mostrem el total acumulat com a mètrica positiva.
-    return { totalTaken };
-  };
-
-  const monthlyStats = getMonthlyStats();
-
-  // --- FILTRATGE DE LLISTA ---
   const filteredLogs = selectedDay 
     ? logs.filter(l => new Date(l.takenAt).toDateString() === selectedDay.toDateString())
     : logs;
 
-  const groupedLogs = filteredLogs.slice(0, 50).reduce((acc, log) => {
+  const groupedLogs = filteredLogs.slice(0, 30).reduce((acc, log) => {
     const date = new Date(log.takenAt).toLocaleDateString('ca-ES', { weekday: 'long', day: 'numeric', month: 'long' });
     if (!acc[date]) acc[date] = [];
     acc[date].push(log);
@@ -140,243 +123,257 @@ export const History: React.FC = () => {
   }, {} as Record<string, HistoryLog[]>);
 
   return (
-    <div className="space-y-6 pb-32">
-      <header>
-        <h1 className="text-3xl font-black text-slate-900">Historial</h1>
-        <p className="text-xl text-slate-500">Calendari d'adherència.</p>
+    <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">El teu Historial</h1>
+        <p className="text-sm text-slate-500 font-medium">L'adherència és la clau de l'èxit.</p>
       </header>
 
-      {/* RESUM MENSUAL SIMPLE */}
-      <div className="bg-sky-50 p-5 rounded-3xl border-2 border-sky-100 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-4">
-           <div className="bg-sky-100 p-3 rounded-2xl text-sky-600">
-             <Award className="w-8 h-8" />
-           </div>
-           <div>
-             <span className="block text-3xl font-black text-slate-800">{monthlyStats.totalTaken}</span>
-             <span className="text-sm font-bold text-slate-500 uppercase tracking-wide">Preses aquest mes</span>
-           </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col justify-between">
+          <div className="bg-sky-50 w-10 h-10 rounded-xl flex items-center justify-center text-sky-600 mb-4">
+            <Activity className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="block text-3xl font-black text-slate-900 tracking-tighter">{stats.taken}</span>
+            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">PRESES MES</span>
+          </div>
         </div>
-        <TrendingUp className="w-12 h-12 text-sky-200" />
-      </div>
-
-      {/* CALENDARI */}
-      <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 shadow-sm">
-        {/* Navegació Mes */}
-        <div className="flex items-center justify-between mb-6 px-2">
-          <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-100 rounded-full text-slate-600">
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-          <h2 className="text-xl font-bold text-slate-800 capitalize">{monthName}</h2>
-          <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-100 rounded-full text-slate-600">
-            <ChevronRight className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Capçaleres Dies Setmana */}
-        <div className="grid grid-cols-7 mb-2">
-          {['Dl', 'Dm', 'Dc', 'Dj', 'Dv', 'Ds', 'Dg'].map(d => (
-            <div key={d} className="text-center text-xs font-bold text-slate-400 uppercase">
-              {d}
-            </div>
-          ))}
-        </div>
-
-        {/* Dies */}
-        <div className="grid grid-cols-7 gap-2">
-          {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-            <div key={`empty-${i}`} className="aspect-square"></div>
-          ))}
-          
-          {Array.from({ length: days }).map((_, i) => {
-            const dayNum = i + 1;
-            const status = getDayStatus(dayNum);
-            const isSelected = selectedDay?.getDate() === dayNum && selectedDay?.getMonth() === currentDate.getMonth();
-            const isToday = new Date().getDate() === dayNum && new Date().getMonth() === currentDate.getMonth() && new Date().getFullYear() === currentDate.getFullYear();
-
-            let bgClass = 'bg-slate-50 text-slate-400';
-            if (status === 'perfect') bgClass = 'bg-emerald-400 text-white shadow-emerald-200';
-            else if (status === 'partial') bgClass = 'bg-orange-400 text-white shadow-orange-200';
-            else if (status === 'missed') bgClass = 'bg-red-400 text-white shadow-red-200';
-            else if (status === 'pending') bgClass = 'bg-slate-100 text-slate-500';
-
-            if (isSelected) bgClass += ' ring-4 ring-sky-300 z-10 scale-110';
-            if (isToday && !isSelected) bgClass += ' ring-2 ring-sky-200';
-
-            return (
-              <button
-                key={dayNum}
-                onClick={() => {
-                  const newSelected = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNum);
-                  if (selectedDay && selectedDay.getTime() === newSelected.getTime()) {
-                    setSelectedDay(null); // Deselect
-                  } else {
-                    setSelectedDay(newSelected);
-                  }
-                }}
-                className={`aspect-square rounded-xl flex items-center justify-center font-bold text-sm transition-all shadow-sm ${bgClass}`}
-              >
-                {dayNum}
-              </button>
-            );
-          })}
-        </div>
-        
-        {/* Llegenda */}
-        <div className="flex justify-center gap-4 mt-6 text-xs font-medium text-slate-500">
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-emerald-400"></div>Complet</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-orange-400"></div>Parcial</div>
-          <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-full bg-red-400"></div>Oblidat</div>
+        <div className={`p-6 rounded-[2rem] shadow-lg shadow-sky-600/10 flex flex-col justify-between text-white transition-all ${stats.adherence > 80 ? 'bg-emerald-500' : 'bg-sky-600'}`}>
+          <div className="bg-white/20 w-10 h-10 rounded-xl flex items-center justify-center text-white mb-4">
+            <TrendingUp className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="block text-3xl font-black tracking-tighter">{stats.adherence}%</span>
+            <span className="text-[9px] font-black text-white/70 uppercase tracking-widest">ADHERÈNCIA</span>
+          </div>
         </div>
       </div>
 
-      {/* LLISTAT DE REGISTRES */}
-      <div className="space-y-6 pt-4 border-t-2 border-slate-100">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-800">
-            {selectedDay ? `Registres del ${selectedDay.toLocaleDateString()}` : 'Últims Registres'}
-          </h2>
-          {selectedDay && (
-            <button 
-              onClick={() => setSelectedDay(null)}
-              className="text-sm font-bold text-sky-600 flex items-center gap-1 bg-sky-50 px-3 py-1 rounded-full"
-            >
-              <RotateCcw className="w-4 h-4" /> Veure tot
-            </button>
-          )}
+      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">
+        <div className="bg-slate-50/80 p-5 flex items-center justify-between border-b border-slate-100">
+          <button onClick={() => changeMonth(-1)} className="p-2 bg-white shadow-sm rounded-xl text-slate-600 active:scale-90 transition-all">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="text-center">
+            <h2 className="text-base font-black text-slate-900 capitalize leading-tight">{monthName.split(' de ')[0]}</h2>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">{currentDate.getFullYear()}</p>
+          </div>
+          <button onClick={() => changeMonth(1)} className="p-2 bg-white shadow-sm rounded-xl text-slate-600 active:scale-90 transition-all">
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
-        
-        {Object.entries(groupedLogs).map(([date, dayLogs]) => {
-          const logsForDay = dayLogs as HistoryLog[];
-          return (
-            <div key={date}>
-              <div className="flex items-center gap-3 mb-4 text-sm font-bold text-slate-500 uppercase tracking-wide px-2">
-                <CalendarIcon className="w-4 h-4" />
-                {date}
+
+        <div className="p-4">
+          <div className="grid grid-cols-7 mb-2">
+            {['DL', 'DT', 'DC', 'DJ', 'DV', 'DS', 'DG'].map(d => (
+              <div key={d} className="text-center text-[9px] font-black text-slate-300 tracking-widest py-1">
+                {d}
               </div>
-              <div className="bg-white rounded-3xl border-2 border-slate-100 shadow-sm overflow-hidden">
-                {logsForDay.map((log, index) => {
-                  const isSkipped = log.status === 'skipped';
-                  return (
-                    <div 
-                      key={log.id} 
-                      className={`p-5 flex justify-between items-center ${index !== logsForDay.length - 1 ? 'border-b-2 border-slate-50' : ''} ${isSkipped ? 'bg-red-50/50' : ''}`}
-                    >
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold text-lg ${isSkipped ? 'text-red-700 decoration-red-300' : 'text-slate-800'}`}>
-                            {log.medicationName}
-                          </span>
-                          {isSkipped && (
-                            <span className="text-xs font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full border border-red-200">
-                              NO PRES
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-500 font-medium text-sm">
-                          <Clock className="w-4 h-4" />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1.5">
+            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+              <div key={`empty-${i}`} className="aspect-square"></div>
+            ))}
+            
+            {Array.from({ length: days }).map((_, i) => {
+              const dayNum = i + 1;
+              const checkDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNum);
+              const { expectedCount, takenCount } = getDayData(checkDate);
+              const isSelected = selectedDay?.getDate() === dayNum && selectedDay?.getMonth() === currentDate.getMonth();
+              const isToday = new Date().toDateString() === checkDate.toDateString();
+              
+              let statusClass = 'bg-slate-50 text-slate-400';
+              let indicator = null;
+
+              if (expectedCount > 0) {
+                if (takenCount >= expectedCount) {
+                  statusClass = 'bg-emerald-100 text-emerald-800 font-black';
+                  indicator = 'bg-emerald-500';
+                } else if (takenCount > 0) {
+                  statusClass = 'bg-amber-100 text-amber-800 font-black';
+                  indicator = 'bg-amber-500';
+                } else if (checkDate < new Date()) {
+                  statusClass = 'bg-rose-100 text-rose-800 font-black';
+                  indicator = 'bg-rose-500';
+                }
+              }
+
+              return (
+                <button
+                  key={dayNum}
+                  onClick={() => {
+                    Haptics.tick();
+                    const newSelected = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNum);
+                    setSelectedDay(selectedDay?.getTime() === newSelected.getTime() ? null : newSelected);
+                  }}
+                  className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all duration-300 text-sm ${
+                    isSelected ? 'ring-2 ring-sky-500 scale-105 z-10 shadow-md' : ''
+                  } ${statusClass} ${isToday && !isSelected ? 'ring-1 ring-slate-300' : ''}`}
+                >
+                  <span>{dayNum}</span>
+                  {indicator && (
+                    <div className={`absolute bottom-1 w-1 h-1 rounded-full ${indicator}`}></div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {selectedDay && (
+        <div className="bg-slate-900 text-white p-6 rounded-[2rem] shadow-2xl animate-in slide-in-from-top-4 duration-500 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-6 opacity-5">
+            <CalendarCheck2 className="w-24 h-24" />
+          </div>
+          <div className="flex justify-between items-start mb-6">
+            <div className="flex items-center gap-3">
+               <div className="bg-white/10 p-2 rounded-xl">
+                 <CalendarDays className="w-5 h-5 text-sky-400" />
+               </div>
+               <div>
+                 <h3 className="text-xl font-black capitalize tracking-tight">
+                  {selectedDay.toLocaleDateString('ca-ES', { day: 'numeric', month: 'long' })}
+                 </h3>
+                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Resum de la jornada</p>
+               </div>
+            </div>
+            <button onClick={() => setSelectedDay(null)} className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-3 relative z-10">
+             <div className="bg-white/5 p-3 rounded-2xl flex flex-col items-center border border-white/5">
+                <Target className="w-5 h-5 text-slate-500 mb-2" />
+                <span className="text-xl font-black">{getDayData(selectedDay).expectedCount}</span>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">OBJECTIU</p>
+             </div>
+             <div className="bg-emerald-500/10 p-3 rounded-2xl flex flex-col items-center border border-emerald-500/20">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 mb-2" />
+                <span className="text-xl font-black text-emerald-400">{getDayData(selectedDay).takenCount}</span>
+                <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">PRESES</p>
+             </div>
+             <div className="bg-rose-500/10 p-3 rounded-2xl flex flex-col items-center border border-rose-500/20">
+                <XCircle className="w-5 h-5 text-rose-400 mb-2" />
+                <span className="text-xl font-black text-rose-400">{getDayData(selectedDay).skippedCount}</span>
+                <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">SALTADES</p>
+             </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-6 pt-2">
+        <h2 className="text-xl font-black text-slate-900 tracking-tight px-2">
+          {selectedDay ? 'Activitat del dia' : 'Registres recents'}
+        </h2>
+        
+        <div className="space-y-6">
+          {(Object.entries(groupedLogs) as [string, HistoryLog[]][]).map(([date, dayLogs]) => (
+            <div key={date} className="space-y-3">
+              <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] px-2 flex items-center gap-2">
+                <div className="w-1 h-1 rounded-full bg-sky-500"></div>
+                {date}
+              </h3>
+              <div className="space-y-2">
+                {dayLogs.map((log) => (
+                  <div 
+                    key={log.id} 
+                    className={`bg-white p-4 rounded-[1.8rem] border flex items-center justify-between shadow-sm transition-all hover:border-sky-200 ${
+                      log.status === 'skipped' ? 'border-rose-100' : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl ${log.status === 'skipped' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                        {log.status === 'skipped' ? <XCircle className="w-5 h-5" /> : <Check className="w-5 h-5 stroke-[3]" />}
+                      </div>
+                      <div>
+                        <h4 className="text-base font-black text-slate-900 leading-tight">{log.medicationName}</h4>
+                        <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold mt-1">
+                          <Clock className="w-3 h-3" />
                           <span>{new Date(log.takenAt).toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handleEditClick(log)}
-                          className="p-3 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-colors"
-                          aria-label="Editar"
-                        >
-                          <Pencil className="w-5 h-5" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(log.id)}
-                          className="p-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                          aria-label="Eliminar"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
                     </div>
-                  );
-                })}
+                    
+                    <div className="flex gap-1">
+                      <button onClick={() => handleEditClick(log)} className="p-2 text-slate-300 hover:text-sky-600 rounded-lg active:scale-90">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(log.id)} className="p-2 text-slate-300 hover:text-rose-600 rounded-lg active:scale-90">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          );
-        })}
+          ))}
+        </div>
 
         {filteredLogs.length === 0 && (
-          <div className="text-center py-10 bg-slate-50 rounded-3xl border-2 border-slate-100 border-dashed">
-            <p className="text-slate-400 text-lg">No hi ha registres per mostrar.</p>
+          <div className="text-center py-20 px-8 bg-white rounded-[2.5rem] border border-dashed border-slate-200">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BarChart3 className="w-8 h-8 text-slate-200" />
+            </div>
+            <p className="text-slate-400 text-lg font-bold">Encara no hi dades.</p>
           </div>
         )}
       </div>
 
-      {/* Modal d'Edició */}
       {editingLog && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-slate-900">Editar Registre</h3>
-              <button 
-                onClick={() => setEditingLog(null)}
-                className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
-              >
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[70] flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-6 space-y-6 animate-in slide-in-from-bottom-8">
+            <header className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">Editar Registre</h2>
+                <p className="text-slate-500 text-sm font-bold">{editingLog.medicationName}</p>
+              </div>
+              <button onClick={() => setEditingLog(null)} className="p-2 bg-slate-100 rounded-full">
                 <X className="w-6 h-6 text-slate-600" />
               </button>
-            </div>
+            </header>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Medicament</label>
-                <p className="text-xl font-bold text-slate-800">{editingLog.medicationName}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Estat</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setEditStatus('taken')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 font-bold transition-all ${
-                      editStatus === 'taken'
-                        ? 'bg-emerald-100 border-emerald-500 text-emerald-700'
-                        : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Check className="w-5 h-5" />
-                    Pres
-                  </button>
-                  <button
-                    onClick={() => setEditStatus('skipped')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 font-bold transition-all ${
-                      editStatus === 'skipped'
-                        ? 'bg-red-100 border-red-500 text-red-700'
-                        : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Ban className="w-5 h-5" />
-                    No Pres
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Data i Hora</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Data i Hora</label>
                 <input
                   type="datetime-local"
+                  className="w-full p-4 text-lg rounded-2xl border border-slate-200 focus:outline-none focus:border-sky-500 bg-slate-50 font-bold"
                   value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
-                  className="w-full p-4 text-xl rounded-2xl border-2 border-slate-200 focus:border-sky-500 focus:ring-4 focus:ring-sky-100 outline-none bg-white text-slate-900"
+                  onChange={e => setEditDate(e.target.value)}
                 />
               </div>
 
-              <div className="pt-2 flex flex-col gap-3">
-                <Button onClick={handleSaveEdit} fullWidth className="text-lg">
-                  <Save className="w-6 h-6" />
-                  GUARDAR CANVIS
-                </Button>
-                <Button variant="ghost" onClick={() => setEditingLog(null)} fullWidth>
-                  Cancel·lar
-                </Button>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Estat de la presa</label>
+                <div className="grid grid-cols-2 gap-3">
+                   <button 
+                    onClick={() => { Haptics.tick(); setEditStatus('taken'); }}
+                    className={`p-4 rounded-2xl font-black text-base border-2 transition-all flex items-center justify-center gap-2 ${editStatus === 'taken' ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                   >
+                     <CheckCircle2 className="w-5 h-5" /> PRESA
+                   </button>
+                   <button 
+                    onClick={() => { Haptics.tick(); setEditStatus('skipped'); }}
+                    className={`p-4 rounded-2xl font-black text-base border-2 transition-all flex items-center justify-center gap-2 ${editStatus === 'skipped' ? 'bg-rose-500 border-rose-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                   >
+                     <XCircle className="w-5 h-5" /> SALTADA
+                   </button>
+                </div>
               </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <Button onClick={handleSaveEdit} fullWidth className="py-5 text-lg">
+                <Save className="w-5 h-5" /> GUARDAR CANVIS
+              </Button>
+              <Button onClick={() => setEditingLog(null)} variant="ghost" fullWidth className="text-slate-400">
+                Cancel·lar
+              </Button>
             </div>
           </div>
         </div>
