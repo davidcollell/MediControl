@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Tab, Medication, HistoryLog, AppSettings } from './types';
-import { getMedications, saveLog, getLogs, getSettings } from './services/storage';
-import { Dashboard } from './components/Dashboard';
-import { MedicationList } from './components/MedicationList';
-import { History } from './components/History';
+import { Tab, Medication, HistoryLog, AppSettings } from './types.ts';
+import { getMedications, saveLog, getLogs, getSettings } from './services/storage.ts';
+import { Dashboard } from './components/Dashboard.tsx';
+import { MedicationList } from './components/MedicationList.tsx';
+import { History } from './components/History.tsx';
 import { LayoutDashboard, Pill, History as HistoryIcon, WifiOff, Download, Smartphone, ChevronRight } from 'lucide-react';
-import { Haptics } from './services/haptics';
+import { Haptics } from './services/haptics.ts';
 
 const APP_ICON_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEyOCIgZmlsbD0iIzBlYTVlOSIvPjxwYXRoIGQ9Ik0zNjAgMTUwYy00MC00MC0xMDUtNDAtMTQ1IDBsLTY1IDY1Yy00MCA0MC00MCAxMDUgMCAxNDVzMTA1IDQwIDE0NSAwbDY1LTY1YzQwLTQwIDQwLTEwNSAwLTE0NXoiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMjE1IDIxNWw4MCA4MCIgc3Ryb2tlPSIjMGVhNWU5IiBzdHJva2Utd2lkdGg9IjI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48Y2lyY2xlIGN4PSI0MDAiIGN5PSIxMTAiIHI9IjYwIiBmaWxsPSIjZmRlMDQ3Ii8+PHBhdGggZD0iTTQwMCA5MHY0MG0tMjAtMjBoNDAiIHN0cm9rZT0iIzg1NGQwZSIgc3Ryb2tlLXdpZHRoPSIxMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+";
 

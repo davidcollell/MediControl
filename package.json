@@ -1,3 +1,4 @@
+
 {
   "name": "medicontrol-pro",
   "version": "1.0.0",
@@ -6,7 +7,10 @@
     "node": "20.x"
   },
   "scripts": {
+    "build": "echo 'Static deployment'",
     "start": "serve ."
   },
-  "dependencies": {}
+  "dependencies": {
+    "serve": "^14.2.4"
+  }
 }

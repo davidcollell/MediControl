@@ -1,3 +1,4 @@
+
 {
   "version": 2,
   "cleanUrls": true,
@@ -10,6 +11,10 @@
     {
       "source": "/manifest.json",
       "destination": "/manifest.json"
+    },
+    {
+      "source": "/favicon.svg",
+      "destination": "/favicon.svg"
     },
     {
       "source": "/(.*)",
@@ -27,6 +32,10 @@
         {
           "key": "Service-Worker-Allowed",
           "value": "/"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
         }
       ]
     },
@@ -40,15 +49,6 @@
         {
           "key": "Access-Control-Allow-Origin",
           "value": "*"
-        }
-      ]
-    },
-    {
-      "source": "/(.*).(jpg|jpeg|png|svg|webp|ico)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
         }
       ]
     }

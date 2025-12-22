@@ -1,5 +1,5 @@
 
-import { Medication, HistoryLog, Schedule, AppSettings } from '../types';
+import { Medication, HistoryLog, Schedule, AppSettings } from '../types.ts';
 
 const MEDS_KEY = 'medicontrol_meds';
 const LOGS_KEY = 'medicontrol_logs';
