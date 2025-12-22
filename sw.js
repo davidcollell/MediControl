@@ -1,13 +1,12 @@
 
-const CACHE_NAME = 'medicontrol-pro-v5';
-const OFFLINE_URL = 'index.html';
+const CACHE_NAME = 'medicontrol-pro-v4';
+const OFFLINE_URL = '/index.html';
 
 const ASSETS_TO_CACHE = [
-  './',
-  'index.html',
-  'index.tsx',
-  'manifest.json',
-  'favicon.svg',
+  '/',
+  '/index.html',
+  '/index.tsx',
+  '/manifest.json',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap'
 ];
@@ -15,10 +14,7 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Use cache.addAll but catch individual failures to prevent complete install failure
-      return Promise.allSettled(
-        ASSETS_TO_CACHE.map(url => cache.add(url).catch(err => console.warn('Failed to cache:', url, err)))
-      );
+      return cache.addAll(ASSETS_TO_CACHE);
     })
   );
   self.skipWaiting();
@@ -52,7 +48,7 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Serve offline page if navigation request fails
+        // Si no hi ha xarxa, mirem de servir l'index per rutes de navegació
         if (event.request.mode === 'navigate') {
           return caches.match(OFFLINE_URL);
         }
@@ -91,7 +87,7 @@ self.addEventListener('notificationclick', (event) => {
         }
       } else {
         if (client) return client.focus();
-        return clients.openWindow('./');
+        return clients.openWindow('/');
       }
     })
   );

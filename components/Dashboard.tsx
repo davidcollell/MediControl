@@ -1,9 +1,9 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Medication, HistoryLog, Schedule } from '../types.ts';
-import { getTodaysLogs, saveLog, saveMedication } from '../services/storage.ts';
-import { Button } from './Button.tsx';
-import { Haptics } from '../services/haptics.ts';
+import { Medication, HistoryLog, Schedule } from '../types';
+import { getTodaysLogs, saveLog, saveMedication } from '../services/storage';
+import { Button } from './Button';
+import { Haptics } from '../services/haptics';
 import { 
   Check, Clock, AlertTriangle, 
   Pill, BellOff, CheckCircle, 
