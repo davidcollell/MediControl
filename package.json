@@ -1,12 +1,15 @@
+
 {
   "name": "medicontrol-pro",
   "version": "1.0.0",
   "description": "Gestió de medicació nativa per a Android",
   "engines": {
-    "node": "20.x"
+    "node": "18.x"
   },
   "scripts": {
     "start": "serve ."
   },
-  "dependencies": {}
+  "dependencies": {
+    "serve": "^14.2.4"
+  }
 }
