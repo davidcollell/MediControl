@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ca">
   <head>
@@ -11,8 +12,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MediControl">
     
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     
     <title>MediControl Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -100,16 +101,21 @@
     </div>
 
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="index.tsx"></script>
     <script>
-      // Service Worker Registration for Offline & Native Install
-      if ('serviceWorker' in navigator) {
+      // Registre robust del Service Worker per a entorns PWA i previsualitzacions
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('SW registered:', registration);
-          }).catch(error => {
-            console.log('SW registration failed:', error);
-          });
+          // Utilitzem una ruta relativa simple. És la forma més compatible amb "same-origin".
+          // En entorns de sandbox on l'origen és 'null' o 'about:srcdoc', això fallarà silenciadament.
+          navigator.serviceWorker.register('sw.js')
+            .then(registration => {
+              console.log('MediControl SW registrat correctament:', registration.scope);
+            })
+            .catch(error => {
+              // Si falla per "same-origin", normalment és per l'entorn de previsualització (iframe)
+              console.warn('Avís en el registre del SW (normal en algunes previsualitzacions):', error.message);
+            });
         });
       }
     </script>

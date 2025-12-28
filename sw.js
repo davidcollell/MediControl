@@ -1,12 +1,13 @@
 
-const CACHE_NAME = 'medicontrol-pro-v4';
-const OFFLINE_URL = '/index.html';
+const CACHE_NAME = 'medicontrol-pro-v5';
+const OFFLINE_URL = 'index.html';
 
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/index.tsx',
-  '/manifest.json',
+  './',
+  'index.html',
+  'index.tsx',
+  'manifest.json',
+  'favicon.svg',
   'https://cdn.tailwindcss.com',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap'
 ];
@@ -87,7 +88,7 @@ self.addEventListener('notificationclick', (event) => {
         }
       } else {
         if (client) return client.focus();
-        return clients.openWindow('/');
+        return clients.openWindow('./');
       }
     })
   );
